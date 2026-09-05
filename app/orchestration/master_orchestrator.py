@@ -8,6 +8,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from app.models.match_data import PreMatchData, TeamMatchData
+from app.orchestration.analytical_pipeline import PreMatchAnalyticalPipeline
 
 
 # =====================================================================
@@ -1320,6 +1322,39 @@ async def main() -> None:
         environment=env,
         referee=referee,
         realtime_simulation_speed_sec=0.015,
+    )
+
+    # ================================================================
+    # CONNECT PIECES 1-8 ANALYTICAL STATE TO PIECE 9
+    # ================================================================
+    analytical_match = PreMatchData(
+        competition="Test Competition",
+        home_team=TeamMatchData(
+            team_name=home_name,
+            is_home=True,
+        ),
+        away_team=TeamMatchData(
+            team_name=away_name,
+            is_home=False,
+        ),
+    )
+
+    analytical_pipeline = PreMatchAnalyticalPipeline(
+        analytical_match
+    )
+
+    analytical_state = analytical_pipeline.run()
+
+    orchestrator.attach_analytical_state(
+        analytical_state
+    )
+
+    # Verify the Pieces 1-8 evidence is now available to Piece 9.
+    evidence_map = orchestrator.build_evidence_map()
+
+    print(
+        f"Analytical evidence attached: "
+        f"{len([v for v in evidence_map.values() if v is not None])}/8 sections"
     )
 
     final_output = (
