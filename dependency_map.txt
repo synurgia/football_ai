@@ -1,0 +1,267 @@
+source_pieces/football_piece_01.py → class CompetitionRules:
+source_pieces/football_piece_01.py → class MatchRulesEvaluator:
+source_pieces/football_piece_01.py →     def _get_box_status(self, condition: bool) -> Dict[str, str]:
+source_pieces/football_piece_01.py →     def evaluate(self) -> Dict[str, Any]:
+source_pieces/football_piece_01.py →     def print_display(self) -> None:
+source_pieces/football_piece_01.py → class TeamChange:
+source_pieces/football_piece_01.py → class TeamContext:
+source_pieces/football_piece_01.py → class MatchIntelligenceEvaluator:
+source_pieces/football_piece_01.py →     def __init__(
+source_pieces/football_piece_01.py →     def _evaluate_funding(
+source_pieces/football_piece_01.py →     def _analyze_impact(
+source_pieces/football_piece_01.py →     def print_assessment(self) -> None:
+source_pieces/football_piece_01.py → class TeamGoalMetrics:
+source_pieces/football_piece_01.py → class MatchDynamicsEvaluator:
+source_pieces/football_piece_01.py →     def __init__(
+source_pieces/football_piece_01.py →     def evaluate_must_win(
+source_pieces/football_piece_01.py →     def evaluate_scoring_edge(self) -> Dict[str, Any]:
+source_pieces/football_piece_01.py →     def print_assessment(self) -> None:
+source_pieces/football_piece_01.py → class MatchAnalyticalEngine:
+source_pieces/football_piece_01.py →     def __init__(
+source_pieces/football_piece_01.py →     def _analyze_squad_changes(
+source_pieces/football_piece_01.py →     def _compute_scoring_edge(self) -> Dict[str, Any]:
+source_pieces/football_piece_01.py →     def run_full_analysis(self) -> Dict[str, Any]:
+source_pieces/football_piece_01.py →     def print_report(self) -> None:
+source_pieces/football_piece_01.py → class TeamProfile:
+source_pieces/football_piece_02.py → class GeopoliticalContext:
+source_pieces/football_piece_02.py → class MarketHypeContext:
+source_pieces/football_piece_02.py → class TeamProfile:
+source_pieces/football_piece_02.py → class ExtendedAnalyticalEngine:
+source_pieces/football_piece_02.py →     def __init__(self, team_a: TeamProfile, team_b: TeamProfile):
+source_pieces/football_piece_02.py →     def _analyze_conflict_impact(self, team: TeamProfile) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def _analyze_hype_trap(self, team: TeamProfile) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def run_full_evaluation(self) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def print_report(self) -> None:
+source_pieces/football_piece_02.py → class GenderCategory(Enum):
+source_pieces/football_piece_02.py → class Team:
+source_pieces/football_piece_02.py → class MatchUrgencyEngine:
+source_pieces/football_piece_02.py →     def __init__(self, team_a: Team, team_b: Team):
+source_pieces/football_piece_02.py →     def _validate_mens_teams(self) -> None:
+source_pieces/football_piece_02.py →     def evaluate_must_win(self) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def print_analysis(self) -> None:
+source_pieces/football_piece_02.py → class TeamTierProfile:
+source_pieces/football_piece_02.py → class TierAndMotivationEngine:
+source_pieces/football_piece_02.py →     def __init__(self, team_a: TeamTierProfile, team_b: TeamTierProfile):
+source_pieces/football_piece_02.py →     def classify_tier_hierarchy(self) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def evaluate_win_or_die_status(self) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def run_full_analysis(self) -> Dict[str, Any]:
+source_pieces/football_piece_02.py →     def print_analysis(self) -> None:
+source_pieces/football_piece_02.py → def evaluate_match_tiers_and_outcomes(
+source_pieces/football_piece_02.py →         safety_class = "High Safety (Strong Selection)"
+source_pieces/football_piece_02.py →         safety_class = "Moderate Safety (Controlled Risk)"
+source_pieces/football_piece_02.py →         safety_class = "Low Safety (Volatile / High Risk)"
+source_pieces/football_piece_03.py → class FiveDimensionalAnalyticsEngine:
+source_pieces/football_piece_03.py →     def __init__(self, recency_decay: float = 0.85):
+source_pieces/football_piece_03.py →     def analyze_10_game_history(self, team_name: str, matches: List[Dict[str, Any]]) -> Dict[str, Any]:
+source_pieces/football_piece_03.py →     def generate_5d_prediction_matrix(
+source_pieces/football_piece_03.py → class PoissonModelEngine:
+source_pieces/football_piece_03.py →     def _poisson_pmf(k: int, lambd: float) -> float:
+source_pieces/football_piece_03.py →     def calculate_1x2_probabilities(
+source_pieces/football_piece_03.py → class ValueBettingEngine:
+source_pieces/football_piece_03.py →     def evaluate_market_edge(
+source_pieces/football_piece_03.py → class AgentAIHybridEngine:
+source_pieces/football_piece_03.py →     def synthesize_consensus(
+source_pieces/football_piece_03.py → class Step16MultiSystemVerifier:
+source_pieces/football_piece_03.py →     def __init__(self):
+source_pieces/football_piece_03.py →     def execute_multi_system_verification(
+source_pieces/football_piece_03.py → class MustWinEvaluator:
+source_pieces/football_piece_03.py →     def __init__(self, prob_threshold_pct: float = 60.0, dominance_gap_pct: float = 25.0):
+source_pieces/football_piece_03.py →     def isolate_must_win_selection(
+source_pieces/football_piece_04.py → class TacticalResearchEngine:
+source_pieces/football_piece_04.py →     def __init__(self, high_threshold: float = 1.25, low_threshold: float = 0.75):
+source_pieces/football_piece_04.py →     def _evaluate_team_metrics(self, team_name: str, metrics: Dict[str, float]) -> Dict[str, List[str]]:
+source_pieces/football_piece_04.py →     def generate_tactical_research_report(
+source_pieces/football_piece_04.py → class RankingEngine:
+source_pieces/football_piece_04.py →     def __init__(self):
+source_pieces/football_piece_04.py →     def _classify_league_zone(position: int, total_teams: int) -> str:
+source_pieces/football_piece_04.py →     def _classify_fifa_tier(position: int) -> str:
+source_pieces/football_piece_04.py →     def process_rankings(
+source_pieces/football_piece_04.py → class SeniorMenMatchFilter:
+source_pieces/football_piece_04.py →     def __init__(self):
+source_pieces/football_piece_04.py →     def _check_string(self, text: str, patterns: List[str]) -> bool:
+source_pieces/football_piece_04.py →     def validate_match_eligibility(
+source_pieces/football_piece_04.py → class CompetitiveFirstXIFilter:
+source_pieces/football_piece_04.py →     def __init__(self):
+source_pieces/football_piece_04.py →     def _matches_any(self, text: str, patterns: List[str]) -> bool:
+source_pieces/football_piece_04.py →     def evaluate_competitive_and_first_xi_status(
+source_pieces/football_piece_05.py → class UnderdogOddsAnalyzer:
+source_pieces/football_piece_05.py →     def extract_underdog_odds_range(
+source_pieces/football_piece_05.py → class ScheduleContextEngine:
+source_pieces/football_piece_05.py →     def evaluate_favorite_schedule_context(
+source_pieces/football_piece_05.py → class WeatherDisruptionEngine:
+source_pieces/football_piece_05.py →     def evaluate_weather_impact(
+source_pieces/football_piece_05.py → class TeamGapFilter:
+source_pieces/football_piece_05.py →     def __init__(self, min_gap_score: float = 20.0, max_gap_score: float = 80.0):
+source_pieces/football_piece_05.py →     def evaluate_team_gap(
+source_pieces/football_piece_05.py → class MotivationFilter:
+source_pieces/football_piece_05.py →     def evaluate_motivation_dynamics(
+source_pieces/football_piece_05.py → class ResistanceFilter:
+source_pieces/football_piece_05.py →     def __init__(self, key_handicap_barriers: Optional[List[float]] = None):
+source_pieces/football_piece_05.py →     def evaluate_market_and_tactical_resistance(
+source_pieces/football_piece_05.py → class FormFilter:
+source_pieces/football_piece_05.py →     def __init__(self, decay_weights: Optional[List[float]] = None):
+source_pieces/football_piece_05.py →     def evaluate_recent_form(
+source_pieces/football_piece_06.py → class ResistanceFilter:
+source_pieces/football_piece_06.py →     def __init__(self, xga_weight: float = 0.6, clean_sheet_bonus: float = 0.15):
+source_pieces/football_piece_06.py →     def evaluate(self, matches: List[Dict[str, Union[int, float]]]) -> float:
+source_pieces/football_piece_06.py → class FormFilter:
+source_pieces/football_piece_06.py →     def __init__(self, decay_factor: float = 0.85, window_size: int = 5):
+source_pieces/football_piece_06.py →     def evaluate(self, match_history: List[Dict[str, Union[str, int, float]]]) -> float:
+source_pieces/football_piece_06.py → class CompositeTeamEvaluator:
+source_pieces/football_piece_06.py →     def __init__(
+source_pieces/football_piece_06.py →     def set_weights(self, resistance_weight: float, form_weight: float) -> None:
+source_pieces/football_piece_06.py →     def evaluate(
+source_pieces/football_piece_06.py → class TeamTacticalMetrics:
+source_pieces/football_piece_06.py → class TacticalDefensiveAnalyzer:
+source_pieces/football_piece_06.py →     def evaluate_low_block(self, formation: str, def_line_height: float) -> Tuple[float, str]:
+source_pieces/football_piece_06.py →     def evaluate_compactness(self, inter_line_m: float, width_m: float) -> Tuple[float, float]:
+source_pieces/football_piece_06.py →     def evaluate_set_piece_reliance(self, sp_xg_share: float, sp_conversion: float) -> Dict[str, Any]:
+source_pieces/football_piece_06.py →     def evaluate_counter_attack_transition(
+source_pieces/football_piece_06.py →     def analyze(self, metrics: TeamTacticalMetrics) -> Dict[str, Any]:
+source_pieces/football_piece_06.py → class TransitionMatchupMetrics:
+source_pieces/football_piece_06.py → class OffensiveTransitionAnalyzer:
+source_pieces/football_piece_06.py →     def evaluate_counter_speed_mismatch(
+source_pieces/football_piece_06.py →     def evaluate_clinical_finishing(
+source_pieces/football_piece_06.py →     def evaluate_double_tap_potential(
+source_pieces/football_piece_06.py →     def analyze(self, metrics: TransitionMatchupMetrics) -> Dict[str, Any]:
+source_pieces/football_piece_06.py → class LeagueScheduleMetrics:
+source_pieces/football_piece_06.py → class LeagueScheduleContextAnalyzer:
+source_pieces/football_piece_06.py →     def evaluate_season_format(self, season_type: str, progress: float) -> Tuple[float, str]:
+source_pieces/football_piece_06.py →     def evaluate_motivation_gap(
+source_pieces/football_piece_06.py →     def evaluate_logistical_advantage(
+source_pieces/football_piece_06.py →     def analyze(self, metrics: LeagueScheduleMetrics) -> Dict[str, Any]:
+source_pieces/football_piece_07.py → class MatchupRiskProfile:
+source_pieces/football_piece_07.py → class StatisticalMatchFilter:
+source_pieces/football_piece_07.py →     def __init__(
+source_pieces/football_piece_07.py →     def filter_fraudulent_favorite(
+source_pieces/football_piece_07.py →     def filter_goalkeeper_hot_period(
+source_pieces/football_piece_07.py →     def filter_h2h_bogeyman_status(
+source_pieces/football_piece_07.py →     def Evaluate_matchup(
+source_pieces/football_piece_07.py → class OddsFormat(Enum):
+source_pieces/football_piece_07.py → class MarketQuote:
+source_pieces/football_piece_07.py → class ValueOpportunity:
+source_pieces/football_piece_07.py → class MarketAlignmentEngine:
+source_pieces/football_piece_07.py →     def __init__(
+source_pieces/football_piece_07.py →     def _normalize_to_implied_prob(price: float, fmt: OddsFormat) -> float:
+source_pieces/football_piece_07.py →     def remove_vig_proportional(
+source_pieces/football_piece_07.py →     def derive_double_chance_probs(
+source_pieces/football_piece_07.py →     def evaluate_market_quote(
+source_pieces/football_piece_07.py →     def Scan_and_align_match(
+source_pieces/football_piece_07.py → class MatchRole(Enum):
+source_pieces/football_piece_07.py → class MatchProbabilities:
+source_pieces/football_piece_07.py →     def p_upset(self) -> float:
+source_pieces/football_piece_07.py → class BayesianAdjustmentResult:
+source_pieces/football_piece_07.py → class BayesianBusParkAdjuster:
+source_pieces/football_piece_07.py →     def __init__(
+source_pieces/football_piece_07.py →     def evaluate_bus_park_prior(
+source_pieces/football_piece_07.py →     def adjust_probabilities(
+source_pieces/football_piece_08.py → class RefereeProfile:
+source_pieces/football_piece_08.py → class MatchContext:
+source_pieces/football_piece_08.py → class RefereeImpactProfile:
+source_pieces/football_piece_08.py → class RefereeStrictnessEngine:
+source_pieces/football_piece_08.py →     def __init__(
+source_pieces/football_piece_08.py →     def analyze_referee_impact(
+source_pieces/football_piece_08.py → class PitchProfile:
+source_pieces/football_piece_08.py → class KeyPlayerStatus:
+source_pieces/football_piece_08.py → class MicroFactorImpactProfile:
+source_pieces/football_piece_08.py → class PitchAndRosterMicroEngine:
+source_pieces/football_piece_08.py →     def __init__(
+source_pieces/football_piece_08.py →     def calculate_pitch_geometry_impact(
+source_pieces/football_piece_08.py →     def calculate_surface_friction_penalty(self, pitch: PitchProfile) -> float:
+source_pieces/football_piece_08.py →     def evaluate_spof_roster_impact(self, player_status: KeyPlayerStatus) -> float:
+source_pieces/football_piece_08.py →     def Evaluate_match_micro_factors(
+source_pieces/football_piece_08.py → class PositionGroup(Enum):
+source_pieces/football_piece_08.py → class PlayerProfile:
+source_pieces/football_piece_08.py → class StartingXI:
+source_pieces/football_piece_08.py →     def __post_init__(self):
+source_pieces/football_piece_08.py →     def get_unit_players(
+source_pieces/football_piece_08.py → class MatchupExploit:
+source_pieces/football_piece_08.py → class LineupEvaluationReport:
+source_pieces/football_piece_08.py → class StartingXIEvaluationEngine:
+source_pieces/football_piece_08.py →     def __init__(
+source_pieces/football_piece_08.py →     def _calculate_unit_aggregate(
+source_pieces/football_piece_08.py →     def evaluate_unit_matchups(
+source_pieces/football_piece_08.py →         a_def = self._calculate_unit_aggregate(
+source_pieces/football_piece_08.py →         b_def = self._calculate_unit_aggregate(
+source_pieces/football_piece_08.py →     def detect_tactical_exploits(
+source_pieces/football_piece_08.py →     def evaluate_lineup_matchup(
+source_pieces/football_piece_09.py → class WeatherCondition(Enum):
+source_pieces/football_piece_09.py → class PositionGroup(Enum):
+source_pieces/football_piece_09.py → class PlayerProfile:
+source_pieces/football_piece_09.py → class StartingXI:
+source_pieces/football_piece_09.py → class TeamMatchInput:
+source_pieces/football_piece_09.py → class MatchEnvironment:
+source_pieces/football_piece_09.py → class RefereeProfile:
+source_pieces/football_piece_09.py → class MatchEvent:
+source_pieces/football_piece_09.py → class MasterMatchOrchestrator:
+source_pieces/football_piece_09.py →     def __init__(
+source_pieces/football_piece_09.py →     def _evaluate_starting_xi_mismatches(
+source_pieces/football_piece_09.py →     def _evaluate_environmental_drag(self) -> Tuple[float, float, float]:
+source_pieces/football_piece_09.py →     def run_master_orchestration(self) -> Dict:
+source_pieces/football_piece_09.py →             # FIXED: the dataclass field is cards_per_foul.
+source_pieces/football_piece_09.py → def build_default_squad(
+source_pieces/football_piece_09.py → class MarketOdds:
+source_pieces/football_piece_09.py → class ArbitrageOpportunity:
+source_pieces/football_piece_09.py → class OddsNormalizer:
+source_pieces/football_piece_09.py →     def calculate_unbiased_probabilities(
+source_pieces/football_piece_09.py → class PlatformAdapter:
+source_pieces/football_piece_09.py →     def __init__(self, platform_name: str):
+source_pieces/football_piece_09.py →     async def fetch_live_odds(
+source_pieces/football_piece_09.py → class PolymarketAdapter(PlatformAdapter):
+source_pieces/football_piece_09.py →     def __init__(self):
+source_pieces/football_piece_09.py →     async def fetch_live_odds(
+source_pieces/football_piece_09.py → class KalshiAdapter(PlatformAdapter):
+source_pieces/football_piece_09.py →     def __init__(self):
+source_pieces/football_piece_09.py →     async def fetch_live_odds(
+source_pieces/football_piece_09.py → class PinnacleAdapter(PlatformAdapter):
+source_pieces/football_piece_09.py →     def __init__(self):
+source_pieces/football_piece_09.py →     async def fetch_live_odds(
+source_pieces/football_piece_09.py → class Bet365Adapter(PlatformAdapter):
+source_pieces/football_piece_09.py →     def __init__(self):
+source_pieces/football_piece_09.py →     async def fetch_live_odds(
+source_pieces/football_piece_09.py → class UnifiedMarketScanner:
+source_pieces/football_piece_09.py →     def __init__(
+source_pieces/football_piece_09.py →     async def scan_event_across_platforms(
+source_pieces/football_piece_09.py → async def run_market_scanner() -> Dict:
+source_pieces/football_piece_09.py → async def main() -> None:
+source_pieces/football_piece_09.py → # No dataclass was intentionally removed.
+source_pieces/football_piece_10.py → class WeatherCondition(Enum):
+source_pieces/football_piece_10.py → class PositionGroup(Enum):
+source_pieces/football_piece_10.py → class PlayerProfile:
+source_pieces/football_piece_10.py → class StartingXI:
+source_pieces/football_piece_10.py → class TeamMatchInput:
+source_pieces/football_piece_10.py → class MatchEnvironment:
+source_pieces/football_piece_10.py → class RefereeProfile:
+source_pieces/football_piece_10.py → class MatchEvent:
+source_pieces/football_piece_10.py → class MasterMatchOrchestrator:
+source_pieces/football_piece_10.py →     def __init__(
+source_pieces/football_piece_10.py →     def _evaluate_starting_xi_mismatches(
+source_pieces/football_piece_10.py →     def _evaluate_environmental_drag(self) -> Tuple[float, float, float]:
+source_pieces/football_piece_10.py →     def run_master_orchestration(self) -> Dict:
+source_pieces/football_piece_10.py →             # FIXED: the dataclass field is cards_per_foul.
+source_pieces/football_piece_10.py → def build_default_squad(
+source_pieces/football_piece_10.py → class MarketOdds:
+source_pieces/football_piece_10.py → class ArbitrageOpportunity:
+source_pieces/football_piece_10.py → class OddsNormalizer:
+source_pieces/football_piece_10.py →     def calculate_unbiased_probabilities(
+source_pieces/football_piece_10.py → class PlatformAdapter:
+source_pieces/football_piece_10.py →     def __init__(self, platform_name: str):
+source_pieces/football_piece_10.py →     async def fetch_live_odds(
+source_pieces/football_piece_10.py → class PolymarketAdapter(PlatformAdapter):
+source_pieces/football_piece_10.py →     def __init__(self):
+source_pieces/football_piece_10.py →     async def fetch_live_odds(
+source_pieces/football_piece_10.py → class KalshiAdapter(PlatformAdapter):
+source_pieces/football_piece_10.py →     def __init__(self):
+source_pieces/football_piece_10.py →     async def fetch_live_odds(
+source_pieces/football_piece_10.py → class PinnacleAdapter(PlatformAdapter):
+source_pieces/football_piece_10.py →     def __init__(self):
+source_pieces/football_piece_10.py →     async def fetch_live_odds(
+source_pieces/football_piece_10.py → class Bet365Adapter(PlatformAdapter):
+source_pieces/football_piece_10.py →     def __init__(self):
+source_pieces/football_piece_10.py →     async def fetch_live_odds(
+source_pieces/football_piece_10.py → class UnifiedMarketScanner:
+source_pieces/football_piece_10.py →     def __init__(
+source_pieces/football_piece_10.py →     async def scan_event_across_platforms(
+source_pieces/football_piece_10.py → async def run_market_scanner() -> Dict:
+source_pieces/football_piece_10.py → async def main() -> None:
+source_pieces/football_piece_10.py → # No dataclass was intentionally removed.
