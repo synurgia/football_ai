@@ -131,13 +131,17 @@ class PreMatchAnalyticalPipeline:
             self.state.add_error("piece01", exc)
 
         from app.orchestration.piece02_adapter import run_piece02
-
+        from app.orchestration.piece03_adapter import run_piece03
         try:
             result = run_piece02(self.match)
             self.state.add_result("piece02", result)
         except Exception as exc:
             self.state.add_error("piece02", exc)
-
+        try:
+            result = run_piece03(self.match)
+            self.state.add_result("piece03", result)
+        except Exception as exc:
+            self.state.add_error("piece03", exc)
         return self.state
 
     def summary(self) -> Dict[str, Any]:
