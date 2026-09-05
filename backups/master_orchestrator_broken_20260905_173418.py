@@ -111,18 +111,24 @@ class MasterMatchOrchestrator:
         self.env = environment
         self.ref = referee
         self.sim_speed = realtime_simulation_speed_sec
-
-    def attach_analytical_state(self, analytical_state) -> None:
         """
-        Attach the completed Pieces 1-8 analytical state to Piece 9.
-        This does not modify the existing simulation logic.
+        Attach the completed Pieces 1-8 analytical state to the
+        master orchestrator.
+
+        This method does not modify the existing simulation logic.
+        It only makes the upstream analytical evidence available
+        to Piece 9 for controlled integration.
         """
         self.analytical_state = analytical_state
 
+    def attach_analytical_state(self, analytical_state) -> None:
+        """
     def get_analytical_evidence(self) -> Dict[str, object]:
         """
-        Read the successful analytical results from Pieces 1-8.
-        This does not modify simulation values.
+        Read the completed analytical results from Pieces 1-8.
+
+        This method only extracts the evidence already produced by
+        the analytical pipeline. It does not alter simulation values.
         """
         if not hasattr(self, "analytical_state"):
             raise RuntimeError(
@@ -133,26 +139,6 @@ class MasterMatchOrchestrator:
             piece: result.output
             for piece, result in self.analytical_state.results.items()
             if result.success
-        }
-
-    def build_evidence_map(self) -> Dict[str, object]:
-        """
-        Organize the completed Pieces 1-8 evidence for controlled use.
-
-        This method does not change probabilities, simulation parameters,
-        or any existing Piece 9 calculations.
-        """
-        evidence = self.get_analytical_evidence()
-
-        return {
-            "competition_context": evidence.get("piece01"),
-            "external_context": evidence.get("piece02"),
-            "statistical_analysis": evidence.get("piece03"),
-            "tactical_analysis": evidence.get("piece04"),
-            "contextual_analysis": evidence.get("piece05"),
-            "defensive_transition_analysis": evidence.get("piece06"),
-            "advanced_statistical_analysis": evidence.get("piece07"),
-            "micro_factor_analysis": evidence.get("piece08"),
         }
 
     def _evaluate_starting_xi_mismatches(
