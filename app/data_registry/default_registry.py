@@ -34,4 +34,34 @@ def build_default_registry() -> CompetitionRegistry:
         )
     )
 
+    registry.register(
+        CompetitionSource(
+            competition_id="de.1",
+            competition_name="Deutsche Bundesliga 2026/27",
+            source_name="openfootball",
+            source_url="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/de.1.json",
+            coverage_status="available",
+        )
+    )
+
+    registry.register(
+        CompetitionSource(
+            competition_id="es.1",
+            competition_name="Spain Primera División 2026/27",
+            source_name="openfootball",
+            source_url="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/es.1.json",
+            coverage_status="available",
+        )
+    )
+
+    registry.register(
+        CompetitionSource(
+            competition_id="fr.1",
+            competition_name="French Ligue 1 2026/27",
+            source_name="openfootball",
+            source_url="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/fr.1.json",
+            coverage_status="available",
+        )
+    )
+
     return registry
