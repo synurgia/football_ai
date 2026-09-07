@@ -46,6 +46,12 @@ class PredictionResultStore:
         if not match_id:
             raise ValueError("Prediction result requires a match identifier.")
 
+        match_date = match.get("match_date")
+        if not match_date:
+            kickoff_at = match.get("kickoff_at")
+            if kickoff_at:
+                match_date = str(kickoff_at)[:10]
+
         with self._connect() as conn:
             conn.execute(
                 """
@@ -71,7 +77,7 @@ class PredictionResultStore:
                 """,
                 (
                     match_id,
-                    match.get("match_date"),
+                    match_date,
                     match.get("competition"),
                     match.get("home_team"),
                     match.get("away_team"),

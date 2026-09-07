@@ -2,8 +2,9 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from app.worldwide_daily_scanner import WorldwideDailyMatchScanner
-from app.data_validation.daily_readiness import DailyDataReadiness
+from app.worldwide_readiness_service import WorldwideReadinessService
 from app.data_registry.rolling_match_store import RollingMatchStore
+from app.worldwide_daily_prediction_service import WorldwideDailyPredictionService
 
 
 class WorldwideDailyDataManager:
@@ -19,9 +20,17 @@ class WorldwideDailyDataManager:
     This manager does not run predictions and does not modify Pieces 1-9.
     """
 
-    def __init__(self, scanner: Optional[WorldwideDailyMatchScanner] = None, store=None):
+    def __init__(
+        self,
+        scanner: Optional[WorldwideDailyMatchScanner] = None,
+        store=None,
+        prediction_service: Optional[WorldwideDailyPredictionService] = None,
+    ):
         self.scanner = scanner or WorldwideDailyMatchScanner()
         self.store = store or RollingMatchStore()
+        self.prediction_service = (
+            prediction_service or WorldwideDailyPredictionService()
+        )
 
     def run(
         self,
@@ -40,7 +49,10 @@ class WorldwideDailyDataManager:
             include_tomorrow=True,
         )
 
-        readiness = DailyDataReadiness.evaluate_daily_scan(scan)
+        readiness = WorldwideReadinessService().evaluate_daily(
+    scan.get("today", []),
+    scan.get("tomorrow", []),
+)
 
         today_ids = self.store.upsert_many(
             scan.get("today", []),
@@ -52,12 +64,16 @@ class WorldwideDailyDataManager:
             "tomorrow",
         )
 
+        prediction_run = self.prediction_service.process_ready_matches(
+            readiness
+        )
+
         return {
             "date": target_date,
             "today": {
                 "discovered": len(scan.get("today", [])),
                 "ready": len(readiness["today_ready"]),
-                "held": len(readiness["today_held"]),
+                "held": len(readiness["today_insufficient"]),
             },
             "tomorrow": {
                 "discovered": len(scan.get("tomorrow", [])),
@@ -66,10 +82,11 @@ class WorldwideDailyDataManager:
                 ),
             },
             "today_ready_matches": readiness["today_ready"],
-            "today_held_matches": readiness["today_held"],
+            "today_held_matches": readiness["today_insufficient"],
             "tomorrow_preparation": readiness[
                 "tomorrow_preparation"
             ],
+            "predictions": prediction_run,
             "stored": {
                 "today": len(today_ids),
                 "tomorrow": len(tomorrow_ids),

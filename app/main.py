@@ -1,6 +1,10 @@
+from pathlib import Path
 from typing import Any, Dict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi.responses import HTMLResponse
+from app.frontend.dashboard_renderer import render_dashboard
 from pydantic import BaseModel
 
 from app.config import settings
@@ -87,3 +91,8 @@ def get_daily_prediction(match_id: str):
         }
 
     return result
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    return render_dashboard(prediction_result_store)
