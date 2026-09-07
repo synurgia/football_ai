@@ -55,3 +55,35 @@ def predict(request: PredictionRequest):
             status_code=500,
             detail=f"Prediction pipeline error: {exc}",
         ) from exc
+
+from app.data_registry.prediction_result_store import PredictionResultStore
+
+prediction_result_store = PredictionResultStore()
+
+
+@app.get("/daily/today")
+def get_today_predictions():
+    from datetime import date
+
+    results = prediction_result_store.list_results(
+        match_date=date.today().isoformat()
+    )
+
+    return {
+        "date": date.today().isoformat(),
+        "count": len(results),
+        "predictions": results,
+    }
+
+
+@app.get("/daily/{match_id}")
+def get_daily_prediction(match_id: str):
+    result = prediction_result_store.get(match_id)
+
+    if result is None:
+        return {
+            "status": "not_found",
+            "match_id": match_id,
+        }
+
+    return result
