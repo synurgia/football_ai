@@ -1,37 +1,48 @@
 from typing import Any, Dict, List
 
-import httpx
-
-from app.data_providers.public_provider import PublicFootballProvider
 from app.data_normalizers.openfootball_normalizer import OpenFootballNormalizer
+from app.data_providers.public_provider import PublicFootballProvider
+from app.data_registry.competition_registry import CompetitionRegistry
 from app.data_validation.data_sufficiency import DataSufficiencyChecker
 
 
 class FootballIngestionPipeline:
     """
-    Connects the external football data provider to the internal
-    normalized and validated data layers.
+    Competition-aware football data ingestion.
 
-    Competition identity is preserved from the source.
-    This layer does not perform prediction.
+    The registry identifies the legitimate source for the requested
+    competition. The provider performs the external data fetch.
+    The normalizer converts provider-specific data into the internal
+    structure, and the validation layer checks data sufficiency.
+
+    This layer does not perform prediction and does not modify Pieces 1-9.
     """
 
-    def __init__(self, source_url: str):
-        self.source_url = source_url
-        self.provider = PublicFootballProvider(source_url)
+    def __init__(self, registry: CompetitionRegistry):
+        self.registry = registry
 
-    def fetch_and_validate(self, **kwargs: Any) -> List[Dict[str, Any]]:
-        response = httpx.get(
-            self.source_url,
-            timeout=kwargs.get("timeout", 30.0),
-            follow_redirects=True,
+    def fetch_and_validate(
+        self,
+        competition_id: str,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
+        source = self.registry.get(competition_id)
+
+        if source is None:
+            raise ValueError(
+                f"Competition '{competition_id}' is not registered."
+            )
+
+        if source.coverage_status != "available":
+            raise ValueError(
+                f"Competition '{competition_id}' is not currently available."
+            )
+
+        provider = PublicFootballProvider(source.source_url)
+
+        source_data = provider.get_dataset(
+            timeout=kwargs.get("timeout", 30.0)
         )
-        response.raise_for_status()
-
-        source_data = response.json()
-
-        if not isinstance(source_data, dict):
-            raise ValueError("Football data source did not return a JSON object.")
 
         normalized_matches = OpenFootballNormalizer.normalize_dataset(
             source_data

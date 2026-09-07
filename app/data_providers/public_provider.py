@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import httpx
 
@@ -9,16 +9,16 @@ class PublicFootballProvider(FootballDataProvider):
     """
     Provider for publicly available football data.
 
-    This provider retrieves raw football data and keeps it separate
-    from the analytical pipeline.
+    This provider retrieves the complete raw dataset and keeps
+    source-specific fetching separate from the analytical pipeline.
     """
 
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")
 
-    def get_matches(self, **kwargs: Any) -> List[Dict[str, Any]]:
+    def get_dataset(self, **kwargs: Any) -> Dict[str, Any]:
         """
-        Fetch raw match records from the configured public source.
+        Fetch the complete raw football dataset.
         """
 
         timeout = kwargs.get("timeout", 20.0)
@@ -34,7 +34,9 @@ class PublicFootballProvider(FootballDataProvider):
         data = response.json()
 
         if not isinstance(data, dict):
-            raise ValueError("Football data source did not return a JSON object.")
+            raise ValueError(
+                "Football data source did not return a JSON object."
+            )
 
         matches = data.get("matches")
 
@@ -43,8 +45,17 @@ class PublicFootballProvider(FootballDataProvider):
                 "Football data source did not provide a valid matches list."
             )
 
+        return data
+
+    def get_matches(self, **kwargs: Any):
+        """
+        Backward-compatible method returning only match records.
+        """
+
+        data = self.get_dataset(**kwargs)
+
         return [
             match
-            for match in matches
+            for match in data["matches"]
             if isinstance(match, dict)
         ]
