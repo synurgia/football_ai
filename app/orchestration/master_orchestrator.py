@@ -308,7 +308,7 @@ class MasterMatchOrchestrator:
         print(
             f"Referee         : {self.ref.name} "
             f"(Fouls/Tackle: "
-            f"{self.ref.fouls_per_game / self.ref.tackles_per_game:.2f}, "
+            f"{((self.ref.fouls_per_game / self.ref.tackles_per_game) if self.ref.tackles_per_game != 0 else float("nan")):.2f}, "
             f"Pen/G: {self.ref.penalties_per_game})"
         )
         print(

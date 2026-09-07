@@ -222,7 +222,7 @@ def run_prediction(payload: Dict[str, Any]) -> Dict[str, Any]:
         "competition": payload["competition"],
         "home_team": home["team_name"],
         "away_team": away["team_name"],
-        "analytical_summary": analytical_state.summary(),
+        "analytical_summary": analytical_pipeline.summary(),
         "analytical_evidence_sections": len(
             [value for value in evidence_map.values() if value is not None]
         ),
