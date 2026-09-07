@@ -44,14 +44,20 @@ class OpenFootProvider(FootballDataProvider):
     def get_matches(self, **kwargs: Any) -> List[Dict[str, Any]]:
         competition = kwargs.get("competition")
         season = kwargs.get("season")
+        date = kwargs.get("date")
 
-        if not competition:
-            raise ValueError("OpenFoot requires a competition ID.")
+        if not competition and not date:
+            raise ValueError(
+                "OpenFoot requires either a competition ID or a date."
+            )
 
-        params = {"competition": competition}
-
+        params = {}
+        if competition:
+            params["competition"] = competition
         if season:
             params["season"] = season
+        if date:
+            params["date"] = date
 
         response = httpx.get(
             f"{self.base_url}/matches",
@@ -61,13 +67,133 @@ class OpenFootProvider(FootballDataProvider):
         )
         response.raise_for_status()
 
-        data = response.json().get("data", [])
+        body = response.json()
+        data = body.get("data", [])
 
         if not isinstance(data, list):
-            raise ValueError("OpenFoot did not return a valid matches list.")
+            raise ValueError(
+                "OpenFoot did not return a valid matches list."
+            )
 
-        return [item for item in data if isinstance(item, dict)]
+        self.last_matches_meta = body.get("meta", {})
 
+        return [
+            item
+            for item in data
+            if isinstance(item, dict)
+        ]
+
+    def get_all_matches(self, **kwargs: Any) -> List[Dict[str, Any]]:
+        """
+        Retrieve as many matches as OpenFoot permits.
+
+        If pagination is denied by the provider, verified matches already
+        retrieved are returned and metadata records that the dataset is
+        incomplete. No missing matches are invented.
+        """
+
+        competition = kwargs.get("competition")
+        season = kwargs.get("season")
+        date = kwargs.get("date")
+
+        if not competition and not date:
+            raise ValueError(
+                "OpenFoot requires either a competition ID or a date."
+            )
+
+        params = {}
+
+        if competition:
+            params["competition"] = competition
+
+        if season:
+            params["season"] = season
+
+        if date:
+            params["date"] = date
+
+        all_matches: List[Dict[str, Any]] = []
+        seen_cursors = set()
+        page_count = 0
+        pagination_error = None
+
+        while True:
+            response = httpx.get(
+                f"{self.base_url}/matches",
+                params=params,
+                headers=self._headers(),
+                timeout=kwargs.get("timeout", 30.0),
+            )
+
+            if response.status_code == 403:
+                pagination_error = {
+                    "status_code": 403,
+                    "reason": "pagination_access_denied",
+                    "url": str(response.request.url),
+                }
+                break
+
+            response.raise_for_status()
+
+            body = response.json()
+            data = body.get("data", [])
+            meta = body.get("meta", {})
+
+            if not isinstance(data, list):
+                raise ValueError(
+                    "OpenFoot did not return a valid matches list."
+                )
+
+            page_count += 1
+
+            all_matches.extend(
+                item
+                for item in data
+                if isinstance(item, dict)
+            )
+
+            self.last_matches_meta = meta
+
+            scope = meta.get("scope") or {}
+            pagination = meta.get("pagination") or {}
+
+            partial = bool(scope.get("partial", False))
+            next_cursor = pagination.get("next_cursor")
+
+            if not partial or not next_cursor:
+                break
+
+            if next_cursor in seen_cursors:
+                pagination_error = {
+                    "reason": "repeated_cursor",
+                    "cursor": next_cursor,
+                }
+                break
+
+            seen_cursors.add(next_cursor)
+            params["cursor"] = next_cursor
+
+        final_meta = dict(self.last_matches_meta or {})
+
+        reported_total = final_meta.get("total_count")
+
+        final_meta["retrieval"] = {
+            "matches_retrieved": len(all_matches),
+            "reported_total": reported_total,
+            "complete": (
+                pagination_error is None
+                and (
+                    reported_total is None
+                    or len(all_matches) >= reported_total
+                )
+            ),
+            "pages_retrieved": page_count,
+            "pagination_error": pagination_error,
+        }
+
+        self.last_matches_meta = final_meta
+
+        return all_matches
 
     def get_standings(self, **kwargs: Any) -> List[Dict[str, Any]]:
         competition = kwargs.get("competition")
