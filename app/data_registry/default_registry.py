@@ -64,4 +64,24 @@ def build_default_registry() -> CompetitionRegistry:
         )
     )
 
+    registry.register(
+        CompetitionSource(
+            competition_id="pt.1",
+            competition_name="Portuguese Primeira Liga 2026/27",
+            source_name="openfootball",
+            source_url="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/pt.1.json",
+            coverage_status="available",
+        )
+    )
+
+    registry.register(
+        CompetitionSource(
+            competition_id="nl.1",
+            competition_name="Netherlands Eredivisie 2026/27",
+            source_name="openfootball",
+            source_url="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/nl.1.json",
+            coverage_status="available",
+        )
+    )
+
     return registry
