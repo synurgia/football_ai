@@ -6,6 +6,9 @@ from app.models.match_data import (
     TeamMatchData,
 )
 from app.orchestration.analytical_pipeline import PreMatchAnalyticalPipeline
+from app.v1_2_piece_evidence_bridge import V12PieceEvidenceBridge
+from app.v1_2_semantic_resolver import V12SemanticResolver
+from app.v1_2_advantage_synthesis import V12AdvantageSynthesis
 from app.orchestration.master_orchestrator import (
     MasterMatchOrchestrator,
     MatchEnvironment,
@@ -165,6 +168,16 @@ def run_prediction(payload: Dict[str, Any]) -> Dict[str, Any]:
     analytical_pipeline = PreMatchAnalyticalPipeline(central_match)
     analytical_state = analytical_pipeline.run()
 
+    # V1.2 evidence -> semantic resolution -> advantage synthesis
+    v12_bridge = V12PieceEvidenceBridge()
+    v12_state = v12_bridge.build_evidence_state(analytical_state)
+
+    v12_semantic = V12SemanticResolver()
+    v12_state = v12_semantic.resolve_all(v12_state, analytical_state)
+
+    v12_synthesis = V12AdvantageSynthesis()
+    v12_advantage = v12_synthesis.synthesize(v12_state)
+
     environment_data = payload.get("environment", {})
     referee_data = payload.get("referee", {})
 
@@ -227,4 +240,8 @@ def run_prediction(payload: Dict[str, Any]) -> Dict[str, Any]:
             [value for value in evidence_map.values() if value is not None]
         ),
         "final_output": final_output,
+        "v1_2": {
+            "evidence_state": v12_state.to_dict(),
+            "advantage_synthesis": v12_advantage,
+        },
     }

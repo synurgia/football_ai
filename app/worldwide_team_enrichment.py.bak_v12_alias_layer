@@ -60,21 +60,6 @@ class WorldwideTeamEnrichment:
             if normalized:
                 catalogue_by_name[normalized] = competition_id
 
-        # Explicit, verified naming aliases only.
-        # These aliases represent the same competition under
-        # different provider naming conventions.
-        aliases = {
-            "argentine nacional b": "primera nacional",
-            "conmebol libertadores": "copa libertadores",
-            "conmebol sudamericana": "copa sudamericana",
-            "efl championship": "championship",
-            "liga portugal": "primeira liga",
-            "mls": "major league soccer",
-            "spfl premiership": "scottish premiership",
-            "south african premier": "south african premiership",
-            "uefa champions league": "uefa champions league",
-        }
-
         resolved = {}
 
         for match in matches:
@@ -89,17 +74,9 @@ class WorldwideTeamEnrichment:
                 competition_name
             )
 
-            competition_id = catalogue_by_name.get(normalized)
-
-            if competition_id is None:
-                alias_name = aliases.get(normalized)
-
-                if alias_name is not None:
-                    competition_id = catalogue_by_name.get(
-                        alias_name
-                    )
-
-            resolved[competition_name] = competition_id
+            resolved[competition_name] = catalogue_by_name.get(
+                normalized
+            )
 
         return resolved
 
@@ -113,17 +90,6 @@ class WorldwideTeamEnrichment:
         resolved_competitions = self._resolve_openfoot_competitions(
             matches
         )
-
-        # Preserve the resolved OpenFoot competition identity on each
-        # daily fixture so downstream readiness uses the same key
-        # that the snapshot store uses.
-        for match in matches:
-            competition_name = str(
-                match.get("competition") or ""
-            ).strip()
-            match["openfoot_competition_id"] = (
-                resolved_competitions.get(competition_name)
-            )
 
         competitions: Dict[str, Any] = {}
         teams_enriched = 0

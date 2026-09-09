@@ -114,17 +114,6 @@ class WorldwideTeamEnrichment:
             matches
         )
 
-        # Preserve the resolved OpenFoot competition identity on each
-        # daily fixture so downstream readiness uses the same key
-        # that the snapshot store uses.
-        for match in matches:
-            competition_name = str(
-                match.get("competition") or ""
-            ).strip()
-            match["openfoot_competition_id"] = (
-                resolved_competitions.get(competition_name)
-            )
-
         competitions: Dict[str, Any] = {}
         teams_enriched = 0
         unsupported_competitions = []

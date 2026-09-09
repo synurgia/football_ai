@@ -141,7 +141,7 @@ class TeamSnapshotStore:
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 """
-                SELECT team_name, payload
+                SELECT payload
                 FROM team_snapshots
                 WHERE snapshot_key = ?
                 """,
@@ -151,9 +151,7 @@ class TeamSnapshotStore:
         if row is None:
             return None
 
-        snapshot = json.loads(row[1])
-        snapshot["team_name"] = row[0]
-        return snapshot
+        return json.loads(row[0])
 
     def count(self) -> int:
         with sqlite3.connect(self.db_path) as conn:

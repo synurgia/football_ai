@@ -2,7 +2,6 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from app.data_providers.openfoot_provider import OpenFootProvider
-from app.today_match_aggregator import TodayMatchAggregator
 from app.data_normalizers.openfoot_normalizer import OpenFootNormalizer
 
 
@@ -22,17 +21,16 @@ class WorldwideDailyMatchScanner:
 
     def __init__(self, provider: Optional[OpenFootProvider] = None):
         self.provider = provider or OpenFootProvider()
-        self.aggregator = TodayMatchAggregator(
-            openfoot_provider=self.provider
-        )
 
     def _scan_date(self, target_date: str) -> List[Dict[str, Any]]:
-        aggregated = self.aggregator.load_today(target_date)
+        raw_matches = self.provider.get_all_matches(date=target_date)
+
+        normalized = OpenFootNormalizer.normalize_matches(raw_matches)
 
         return [
-            dict(match)
-            for match in aggregated.get("matches", [])
-            if str(match.get("kickoff_at", "")).startswith(target_date)
+            match
+            for match in normalized
+            if match.get("kickoff_at", "").startswith(target_date)
         ]
 
     def scan(
@@ -52,7 +50,7 @@ class WorldwideDailyMatchScanner:
             "today": self._scan_date(today_str),
             "tomorrow": [],
             "provenance": {
-                "provider": "aggregated_sources",
+                "provider": "openfoot",
                 "scan_mode": "global_date",
             },
         }

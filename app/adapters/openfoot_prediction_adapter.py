@@ -50,6 +50,102 @@ class OpenFootPredictionAdapter:
             },
         }
 
+
+    def build_today_prediction_payload(
+        self,
+        match_index: int = 0,
+        date: str = None,
+    ) -> Dict[str, Any]:
+        """Build a prediction payload from today's OpenFoot matches.
+
+        Uses coverage-aware today ingestion and preserves the
+        existing prediction payload structure.
+        """
+        dataset = self.service.load_today(date=date)
+
+        matches = dataset["matches"]
+
+        if not matches:
+            raise ValueError(
+                f"No OpenFoot matches returned for date: "
+                f"{dataset['date']}"
+            )
+
+        if match_index < 0 or match_index >= len(matches):
+            raise IndexError(
+                f"match_index {match_index} is outside the returned "
+                f"match range 0-{len(matches) - 1}"
+            )
+
+        match = matches[match_index]
+
+        home_name = match.get("home_team")
+        away_name = match.get("away_team")
+
+        if not home_name or not away_name:
+            raise ValueError(
+                "OpenFoot match is missing home or away team."
+            )
+
+        home_snapshot = dataset["team_snapshots"].get(home_name)
+        away_snapshot = dataset["team_snapshots"].get(away_name)
+
+        if home_snapshot is None or away_snapshot is None:
+            raise ValueError(
+                "Team snapshots are missing for the selected "
+                "today match."
+            )
+
+        competition_id = match.get("competition")
+
+        competition_name = competition_id
+
+        competition_catalogue = self.service.list_competitions()
+
+        for competition in competition_catalogue:
+            if competition.get("id") == competition_id:
+                competition_name = competition.get("name") or competition_id
+                break
+
+        return {
+            "competition": competition_name,
+            "home_team": self._team_payload(
+                home_name,
+                home_snapshot,
+            ),
+            "away_team": self._team_payload(
+                away_name,
+                away_snapshot,
+            ),
+            "market_odds": {},
+            "data_sources": {
+                "provider": "openfoot",
+                "competition_id": competition_id,
+                "season": match.get("season"),
+                "source_match_id": match.get(
+                    "source_match_id"
+                ),
+                "source_refs": match.get("source_refs"),
+                "kickoff_at": match.get("kickoff_at"),
+                "data_status": "today_match_input",
+                "date": dataset["date"],
+                "coverage_complete": dataset[
+                    "provenance"
+                ].get("coverage_complete"),
+                "reported_total": dataset[
+                    "provenance"
+                ].get("reported_total"),
+                "returned_count": dataset[
+                    "provenance"
+                ].get("returned_count"),
+                "retrieval": dataset[
+                    "provenance"
+                ].get("retrieval", {}),
+            },
+            "environment": {},
+            "referee": {},
+        }
+
     def build_prediction_payload(
         self,
         competition_id: str,

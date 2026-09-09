@@ -34,14 +34,14 @@ class WorldwideReadinessService:
 
         if competition and season and home_team:
             home_snapshot = self.store.get(
-                match.get("openfoot_competition_id") or competition,
+                competition,
                 season,
                 home_team,
             )
 
         if competition and season and away_team:
             away_snapshot = self.store.get(
-                match.get("openfoot_competition_id") or competition,
+                competition,
                 season,
                 away_team,
             )

@@ -1,0 +1,90 @@
+{
+  "manifest_version": "1.0",
+  "purpose": "Persistent source capability and provenance foundation",
+  "generated_at": "2026-09-09T11:15:05.383007+00:00",
+  "source_count": 3,
+  "sources": [
+    {
+      "source_id": "espn_global_soccer",
+      "name": "ESPN Soccer",
+      "base_url": "https://site.api.espn.com",
+      "scope": "GLOBAL",
+      "capabilities": [
+        "fixtures",
+        "match_status",
+        "results",
+        "team_identity"
+      ],
+      "authority_level": "GLOBAL_SECONDARY",
+      "enabled": true,
+      "verification_status": "CAPABILITY_DECLARED",
+      "note": "This record defines what the source is configured to provide. It does not claim that current match evidence has been verified."
+    },
+    {
+      "source_id": "openfoot",
+      "name": "OpenFoot API",
+      "base_url": "https://openfootapi.com",
+      "scope": "GLOBAL",
+      "capabilities": [
+        "fixtures",
+        "competition_data",
+        "team_data",
+        "standings"
+      ],
+      "authority_level": "GLOBAL_SECONDARY",
+      "enabled": true,
+      "verification_status": "CAPABILITY_DECLARED",
+      "note": "This record defines what the source is configured to provide. It does not claim that current match evidence has been verified."
+    },
+    {
+      "source_id": "fkf_official",
+      "name": "Football Kenya Federation",
+      "base_url": "https://footballkenya.org",
+      "scope": "KE",
+      "capabilities": [
+        "fixtures",
+        "competition_context",
+        "league_information",
+        "official_news"
+      ],
+      "authority_level": "OFFICIAL_FEDERATION",
+      "enabled": true,
+      "verification_status": "CAPABILITY_DECLARED",
+      "note": "This record defines what the source is configured to provide. It does not claim that current match evidence has been verified."
+    }
+  ],
+  "capability_map": {
+    "fixtures": [
+      "espn_global_soccer",
+      "openfoot",
+      "fkf_official"
+    ],
+    "match_status": [
+      "espn_global_soccer"
+    ],
+    "results": [
+      "espn_global_soccer"
+    ],
+    "team_identity": [
+      "espn_global_soccer"
+    ],
+    "competition_data": [
+      "openfoot"
+    ],
+    "team_data": [
+      "openfoot"
+    ],
+    "standings": [
+      "openfoot"
+    ],
+    "competition_context": [
+      "fkf_official"
+    ],
+    "league_information": [
+      "fkf_official"
+    ],
+    "official_news": [
+      "fkf_official"
+    ]
+  }
+}

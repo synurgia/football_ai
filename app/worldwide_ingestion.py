@@ -34,6 +34,103 @@ class WorldwideOpenFootService:
 
         return None
 
+    def load_today(self, date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Load only matches returned by OpenFoot for a specific date.
+
+        This reuses the existing normalizer and team-snapshot pipeline.
+        It does not modify Pieces 1-9 or prediction logic.
+        """
+        from datetime import date as date_type
+
+        target_date = date or date_type.today().isoformat()
+
+        raw_matches = self.provider.get_all_matches(
+            date=target_date,
+        )
+
+        retrieval_meta = dict(
+            getattr(self.provider, "last_matches_meta", {}) or {}
+        )
+
+        normalized_matches = OpenFootNormalizer.normalize_matches(
+            raw_matches
+        )
+
+        competition_ids = sorted(
+            {
+                match.get("competition")
+                for match in normalized_matches
+                if match.get("competition")
+            }
+        )
+
+        standings_by_competition = {}
+
+        for competition_id in competition_ids:
+            try:
+                standings_by_competition[competition_id] = (
+                    self.provider.get_standings(
+                        competition=competition_id
+                    )
+                )
+            except Exception as exc:
+                standings_by_competition[competition_id] = {
+                    "error": str(exc),
+                    "available": False,
+                }
+
+        team_snapshots = {}
+
+        for match in normalized_matches:
+            competition_id = match.get("competition")
+            standings = standings_by_competition.get(
+                competition_id,
+                [],
+            )
+
+            for team_name in (
+                match.get("home_team"),
+                match.get("away_team"),
+            ):
+                if not team_name or team_name in team_snapshots:
+                    continue
+
+                team_snapshots[team_name] = OpenFootTeamSnapshot.build(
+                    normalized_matches,
+                    standings,
+                    team_name,
+                )
+
+        return {
+            "date": target_date,
+            "matches": normalized_matches,
+            "standings": standings_by_competition,
+            "team_snapshots": team_snapshots,
+            "provenance": {
+                "matches": "openfoot",
+                "standings": "openfoot",
+                "date": target_date,
+                "competition_ids": competition_ids,
+                "data_status": "today_matches",
+                "retrieval": retrieval_meta.get(
+                    "retrieval",
+                    {},
+                ),
+                "reported_total": retrieval_meta.get(
+                    "total_count"
+                ),
+                "returned_count": len(raw_matches),
+                "coverage_complete": (
+                    retrieval_meta.get("retrieval", {}).get(
+                        "complete"
+                    )
+                    if retrieval_meta
+                    else None
+                ),
+            },
+        }
+
     def load_competition(
         self,
         competition_id: str,

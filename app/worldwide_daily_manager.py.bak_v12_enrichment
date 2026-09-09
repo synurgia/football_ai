@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 
 from app.worldwide_daily_scanner import WorldwideDailyMatchScanner
 from app.worldwide_readiness_service import WorldwideReadinessService
-from app.worldwide_team_enrichment import WorldwideTeamEnrichment
 from app.data_registry.rolling_match_store import RollingMatchStore
 from app.worldwide_daily_prediction_service import WorldwideDailyPredictionService
 
@@ -48,10 +47,6 @@ class WorldwideDailyDataManager:
         scan = self.scanner.scan(
             target_date=target_date,
             include_tomorrow=True,
-        )
-
-        enrichment_result = WorldwideTeamEnrichment().enrich_matches(
-            scan.get("today", [])
         )
 
         readiness = WorldwideReadinessService().evaluate_daily(
