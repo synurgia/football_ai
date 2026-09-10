@@ -504,6 +504,9 @@ class V12SemanticResolver:
         """
         text = f"{answer} {evidence}".upper()
 
+
+        if str(answer).strip().upper() in {"UNKNOWN", "NONE", "NULL"}:
+            return True
         explicit_signals = (
             "INSUFFICIENT DEPTH",
             "INSUFFICIENT DATA",

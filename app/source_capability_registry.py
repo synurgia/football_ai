@@ -119,6 +119,53 @@ def build_default_registry() -> SourceCapabilityRegistry:
         )
     )
 
+    # Discovery-only sources.
+    # Search engines may help locate candidate source pages,
+    # but search results themselves are never treated as evidence.
+    registry.register(
+        SourceCapability(
+            source_id="google_search",
+            name="Google Search",
+            base_url="https://www.google.com",
+            scope="GLOBAL",
+            capabilities=("discovery",),
+            authority_level="DISCOVERY_ONLY",
+        )
+    )
+
+    registry.register(
+        SourceCapability(
+            source_id="bing_search",
+            name="Bing Search",
+            base_url="https://www.bing.com",
+            scope="GLOBAL",
+            capabilities=("discovery",),
+            authority_level="DISCOVERY_ONLY",
+        )
+    )
+
+    registry.register(
+        SourceCapability(
+            source_id="brave_search",
+            name="Brave Search",
+            base_url="https://search.brave.com",
+            scope="GLOBAL",
+            capabilities=("discovery",),
+            authority_level="DISCOVERY_ONLY",
+        )
+    )
+
+    registry.register(
+        SourceCapability(
+            source_id="yandex_search",
+            name="Yandex Search",
+            base_url="https://yandex.com",
+            scope="GLOBAL",
+            capabilities=("discovery",),
+            authority_level="DISCOVERY_ONLY",
+        )
+    )
+
     return registry
 
 

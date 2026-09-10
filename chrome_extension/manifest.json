@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Football AI V1.2",
+  "version": "1.0.0",
+  "description": "Football AI V1.2 prediction dashboard.",
+  "action": {
+    "default_title": "Football AI V1.2",
+    "default_popup": "popup.html"
+  },
+  "permissions": [],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*"
+  ]
+}

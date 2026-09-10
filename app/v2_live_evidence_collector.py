@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from app.v2_evidence_manager import V2EvidenceManager
+from app.v1_2_external_evidence_applier import V12ExternalEvidenceApplier
 from app.v2_evidence_state import V2EvidenceState
 
 
@@ -18,6 +19,7 @@ class V2LiveEvidenceCollector:
 
     def __init__(self) -> None:
         self.manager = V2EvidenceManager()
+        self.external_applier = V12ExternalEvidenceApplier()
 
     def create_match_state(
         self,
@@ -120,6 +122,15 @@ class V2LiveEvidenceCollector:
             observed_at=observed_at,
             status=status,
         )
+
+    def apply_external_evidence(self, state, envelope):
+        """
+        Apply externally collected evidence through the canonical
+        V1.2 evidence applier.
+
+        This does not answer questions semantically.
+        """
+        return self.external_applier.apply(state, envelope)
 
     def collect(
         self,

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.services.prediction_service import run_prediction
+from app.worldwide_daily_manager import WorldwideDailyDataManager
 
 
 app = FastAPI(
@@ -16,6 +17,20 @@ app = FastAPI(
     version=settings.version,
     description="Football AI analytical backend API",
 )
+
+
+@app.on_event("startup")
+def refresh_daily_football_data():
+    try:
+        result = WorldwideDailyDataManager().run()
+        print(
+            "DAILY STARTUP REFRESH:",
+            result.get("date"),
+            "TODAY DISCOVERED:",
+            result.get("today", {}).get("discovered"),
+        )
+    except Exception as exc:
+        print("DAILY STARTUP REFRESH FAILED:", exc)
 
 
 class PredictionRequest(BaseModel):
@@ -61,8 +76,10 @@ def predict(request: PredictionRequest):
         ) from exc
 
 from app.data_registry.prediction_result_store import PredictionResultStore
+from app.data_registry.rolling_match_store import RollingMatchStore
 
 prediction_result_store = PredictionResultStore()
+rolling_match_store = RollingMatchStore()
 
 
 @app.get("/daily/today")
@@ -95,4 +112,4 @@ def get_daily_prediction(match_id: str):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
-    return render_dashboard(prediction_result_store)
+    return render_dashboard(prediction_result_store, rolling_match_store)

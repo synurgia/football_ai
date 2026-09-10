@@ -1,0 +1,63 @@
+from typing import Any, Dict, List
+
+from app.v1_2_external_evidence_envelope import ExternalEvidenceEnvelope
+from app.v1_2_question_capabilities import QUESTION_CAPABILITIES
+from app.v2_evidence_manager import V2EvidenceManager
+from app.v2_evidence_state import V2EvidenceState
+
+
+class V12ExternalEvidenceApplier:
+    """
+    Applies external evidence to the existing canonical V2 question state.
+
+    This class:
+    - does not create questions;
+    - does not replace the V2EvidenceManager;
+    - does not answer questions semantically;
+    - does not modify Pieces 1-9;
+    - preserves the evidence status and provenance supplied by the source.
+    """
+
+    def __init__(self) -> None:
+        self.manager = V2EvidenceManager()
+
+    def apply(
+        self,
+        state: V2EvidenceState,
+        envelope: ExternalEvidenceEnvelope,
+    ) -> List[Dict[str, Any]]:
+        envelope.validate()
+
+        results: List[Dict[str, Any]] = []
+
+        for question_id, capability in QUESTION_CAPABILITIES.items():
+            if capability != envelope.capability:
+                continue
+
+            question = next((item for item in state.items if item.question_id == question_id), None)
+
+            if question is None:
+                raise KeyError(
+                    f"Canonical question not found: {question_id}"
+                )
+
+            piece = int(question.piece)
+
+            result = self.manager.update_question(
+                state,
+                piece=piece,
+                question_id=question_id,
+                answer=question.answer,
+                evidence=envelope.evidence,
+                supports="EXTERNAL_EVIDENCE",
+                confidence=None,
+                source=envelope.source_id,
+                source_ref=envelope.source_ref,
+                observed_at=envelope.observed_at,
+                status=envelope.status,
+                notes=envelope.notes,
+            )
+
+            results.append(result)
+
+        return results

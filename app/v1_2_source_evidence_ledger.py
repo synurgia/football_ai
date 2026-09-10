@@ -21,7 +21,7 @@ class SourceEvidence:
     confidence: Optional[float] = None
     source_ref: Optional[str] = None
     observed_at: Optional[str] = None
-    status: str = "VERIFIED"
+    status: str = "UNVERIFIED"
     notes: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -61,7 +61,7 @@ class V12SourceEvidenceLedger:
         confidence: Optional[float] = None,
         source_ref: Optional[str] = None,
         observed_at: Optional[str] = None,
-        status: str = "VERIFIED",
+        status: str = "UNVERIFIED",
         notes: Optional[str] = None,
     ) -> SourceEvidence:
 
