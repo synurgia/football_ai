@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
+import asyncio
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 from app.frontend.dashboard_renderer import render_dashboard
@@ -10,6 +12,20 @@ from pydantic import BaseModel
 from app.config import settings
 from app.services.prediction_service import run_prediction
 from app.worldwide_daily_manager import WorldwideDailyDataManager
+from app.daily_activation import run_daily_activation
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    daily_task = asyncio.create_task(run_daily_activation())
+    try:
+        yield
+    finally:
+        daily_task.cancel()
+        try:
+            await daily_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -17,20 +33,6 @@ app = FastAPI(
     version=settings.version,
     description="Football AI analytical backend API",
 )
-
-
-@app.on_event("startup")
-def refresh_daily_football_data():
-    try:
-        result = WorldwideDailyDataManager().run()
-        print(
-            "DAILY STARTUP REFRESH:",
-            result.get("date"),
-            "TODAY DISCOVERED:",
-            result.get("today", {}).get("discovered"),
-        )
-    except Exception as exc:
-        print("DAILY STARTUP REFRESH FAILED:", exc)
 
 
 class PredictionRequest(BaseModel):

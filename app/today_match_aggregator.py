@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import httpx
 
 from app.data_providers.openfoot_provider import OpenFootProvider
+from app.data_registry.v13_competition_identity_resolver import V13CompetitionIdentityResolver
 
 
 class TodayMatchAggregator:
@@ -218,6 +219,35 @@ class TodayMatchAggregator:
                 item.get("away_team") or "",
             )
         )
+
+        # ------------------------------------------------------------
+        # V1.3 COMPETITION IDENTITY
+        # ------------------------------------------------------------
+        # Resolve each live competition name against the authoritative
+        # V1.3 catalogue. Never invent an ID when unresolved.
+        identity_resolver = V13CompetitionIdentityResolver()
+
+        for match in unique_matches:
+            competition_name = match.get("competition")
+
+            if not competition_name:
+                match["competition_id"] = None
+                match["competition_identity_status"] = "UNRESOLVED"
+                match["competition_identity_method"] = "NONE"
+                continue
+
+            identity = identity_resolver.resolve(str(competition_name))
+
+            match["competition_id"] = identity.get("competition_id")
+            match["competition_name_canonical"] = identity.get(
+                "competition_name"
+            )
+            match["competition_identity_status"] = identity.get(
+                "status"
+            )
+            match["competition_identity_method"] = identity.get(
+                "match_method"
+            )
 
         successful_sources = [
             source

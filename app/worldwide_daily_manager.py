@@ -41,7 +41,7 @@ class WorldwideDailyDataManager:
         self,
         matches: list[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        collector = RegionalEvidenceCollector()
+        collector = RegionalEvidenceCollector(timeout=3.0)
         live_collector = V2LiveEvidenceCollector()
 
         capability_by_type = {
@@ -139,26 +139,16 @@ class WorldwideDailyDataManager:
             target_date = target.isoformat()
         else:
             target = date.fromisoformat(target_date)
-            target_date = target.isoformat()
+
+        target_date = target.isoformat()
 
         scan = self.scanner.scan(
             target_date=target_date,
             include_tomorrow=True,
         )
 
-        enrichment_result = WorldwideTeamEnrichment().enrich_matches(
-            scan.get("today", [])
-        )
-
-        external_evidence = self._collect_external_evidence(
-            scan.get("today", [])
-        )
-
-        readiness = WorldwideReadinessService().evaluate_daily(
-    scan.get("today", []),
-    scan.get("tomorrow", []),
-)
-
+        # Store discovered matches FIRST.
+        # Evidence failures must never remove a match from the dashboard.
         today_ids = self.store.upsert_many(
             scan.get("today", []),
             "today",
@@ -168,6 +158,43 @@ class WorldwideDailyDataManager:
             scan.get("tomorrow", []),
             "tomorrow",
         )
+
+        try:
+            enrichment_result = WorldwideTeamEnrichment().enrich_matches(
+                scan.get("today", [])
+            )
+        except Exception as exc:
+            enrichment_result = {
+                "status": "failed",
+                "error": str(exc),
+                "matches": [],
+            }
+
+        try:
+            external_evidence = self._collect_external_evidence(
+                scan.get("today", [])
+            )
+        except Exception as exc:
+            external_evidence = {
+                "status": "failed",
+                "error": str(exc),
+                "matches": [],
+            }
+
+        try:
+            readiness = WorldwideReadinessService().evaluate_daily(
+                scan.get("today", []),
+                scan.get("tomorrow", []),
+            )
+        except Exception as exc:
+            readiness = {
+                "today_ready": [],
+                "today_insufficient": scan.get("today", []),
+                "tomorrow_ready": [],
+                "tomorrow_insufficient": scan.get("tomorrow", []),
+                "status": "failed",
+                "error": str(exc),
+            }
 
         prediction_run = self.prediction_service.process_ready_matches(
             readiness

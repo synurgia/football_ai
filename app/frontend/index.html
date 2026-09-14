@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -5,22 +6,100 @@
 <style>
 body{font-family:Arial;margin:0;background:#eef1f5;color:#17202a}
 header{background:#111827;color:white;padding:20px}
-main{max-width:800px;margin:20px auto;padding:10px}
-.card{background:white;margin:20px 0;padding:20px;border-radius:12px}
+main{max-width:900px;margin:20px auto;padding:10px}
+.card{background:white;margin:15px 0;padding:20px;border-radius:12px}
+.score{font-size:30px;font-weight:bold;margin:12px 0}
 .outcome{font-size:20px;font-weight:bold}
+.meta{color:#667085;margin:6px 0}
+.error{color:#b42318}
 </style>
 </head>
 <body>
+
 <header>
 <h1>Football AI</h1>
-<p>Daily Match Prediction Dashboard</p>
+<p>Today's Match Predictions</p>
 </header>
+
 <main>
-<div class="card">
-<h2>Dashboard Connection Test</h2>
-<p>FastAPI dashboard is connected successfully.</p>
-<p>Live prediction rendering will be connected in the next V1 step.</p>
-</div>
+<div id="status" class="card">Loading today's predictions...</div>
+<div id="matches"></div>
 </main>
+
+<script>
+async function loadPredictions() {
+    const status = document.getElementById("status");
+    const matches = document.getElementById("matches");
+
+    try {
+        const response = await fetch("/daily/today");
+
+        if (!response.ok) {
+            throw new Error("API returned HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        status.innerHTML =
+            "<h2>Today's Predictions</h2>" +
+            "<p>" + data.count + " prediction(s) available</p>";
+
+        if (!data.predictions || data.predictions.length === 0) {
+            matches.innerHTML =
+                '<div class="card">No predictions available today.</div>';
+            return;
+        }
+
+        matches.innerHTML = "";
+
+        data.predictions.forEach(item => {
+            const prediction = item.prediction || item;
+            const finalOutput = prediction.final_output || {};
+
+            const card = document.createElement("div");
+            card.className = "card";
+
+            card.innerHTML =
+                "<h2>" +
+                (finalOutput.home_team || item.home_team || "Home") +
+                " vs " +
+                (finalOutput.away_team || item.away_team || "Away") +
+                "</h2>" +
+
+                "<div class='meta'>" +
+                (item.competition || prediction.competition || "") +
+                "</div>" +
+
+                "<div class='score'>" +
+                (finalOutput.home_score ?? "-") +
+                " - " +
+                (finalOutput.away_score ?? "-") +
+                "</div>" +
+
+                "<div class='outcome'>" +
+                (finalOutput.outcome || "Outcome unavailable") +
+                "</div>" +
+
+                "<p>Home xG: " +
+                (finalOutput.home_xg ?? "-") +
+                "</p>" +
+
+                "<p>Away xG: " +
+                (finalOutput.away_xg ?? "-") +
+                "</p>";
+            
+            matches.appendChild(card);
+        });
+
+    } catch (error) {
+        status.innerHTML =
+            "<h2 class='error'>Dashboard Error</h2>" +
+            "<p class='error'>" + error.message + "</p>";
+    }
+}
+
+loadPredictions();
+</script>
+
 </body>
 </html>
