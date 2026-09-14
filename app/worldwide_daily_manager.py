@@ -9,6 +9,7 @@ from app.worldwide_daily_prediction_service import WorldwideDailyPredictionServi
 from app.regional_evidence_collector import RegionalEvidenceCollector
 from app.v1_2_external_evidence_adapter import adapt_collected_source_evidence
 from app.v2_live_evidence_collector import V2LiveEvidenceCollector
+from app.v13_ai_daily_bridge import analyze_daily_matches
 from app.data_registry.evidence_state_store import EvidenceStateStore
 
 
@@ -180,6 +181,16 @@ class WorldwideDailyDataManager:
                 "error": str(exc),
                 "matches": [],
             }
+
+        # V1.3 AI intelligence runs after source/evidence collection
+        # and before the existing readiness gate.
+        ai_result = analyze_daily_matches(
+            scan.get("today", [])
+        )
+
+        ai_matches = ai_result.get("matches", [])
+        if ai_matches:
+            scan["today"] = ai_matches
 
         try:
             readiness = WorldwideReadinessService().evaluate_daily(

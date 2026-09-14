@@ -1,0 +1,98 @@
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+
+@dataclass(frozen=True)
+class CompetitionSource:
+    """
+    Describes one real data source associated with one football competition.
+
+    The registry records source classification and verification state.
+    It does NOT itself perform network requests.
+
+    A source must not be considered production-available merely because
+    a URL has been discovered. Verification must establish that the source
+    actually covers the intended competition and provides usable data.
+    """
+
+    # Existing identity fields — preserved for backward compatibility.
+    competition_id: str
+    competition_name: str
+    source_name: str
+    source_url: str
+    coverage_status: str
+
+    # V1.3 source classification.
+    source_role: str = "UNCLASSIFIED"
+    authority_level: str = "UNKNOWN"
+
+    # What the source is actually capable of providing.
+    capabilities: Tuple[str, ...] = field(default_factory=tuple)
+
+    # Season/scope information established during verification.
+    season: str = ""
+
+    # Verification state.
+    verification_status: str = "UNVERIFIED"
+    verification_notes: str = ""
+
+    # Existing free-form notes remain available.
+    notes: str = ""
+
+
+class CompetitionRegistry:
+    """
+    Registry of football competitions and their available data sources.
+
+    Multiple sources may be registered for the same competition.
+    Legacy get() behavior is preserved for existing consumers.
+    Federation-aware consumers should use get_all() so no source is discarded.
+    """
+
+    def __init__(self) -> None:
+        self._sources: Dict[str, List[CompetitionSource]] = {}
+
+    def register(self, source: CompetitionSource) -> None:
+        sources = self._sources.setdefault(source.competition_id, [])
+
+        for index, existing in enumerate(sources):
+            if (
+                existing.source_name == source.source_name
+                and existing.source_url == source.source_url
+            ):
+                sources[index] = source
+                return
+
+        sources.append(source)
+
+    def get(self, competition_id: str) -> Optional[CompetitionSource]:
+        """
+        Backward-compatible accessor.
+
+        Returns the first registered source for legacy consumers.
+        Federation-aware code should use get_all() so no source is discarded.
+        """
+        sources = self._sources.get(competition_id, [])
+        return sources[0] if sources else None
+
+    def get_all(self, competition_id: str) -> List[CompetitionSource]:
+        """Return all registered sources for a competition."""
+        return list(self._sources.get(competition_id, []))
+
+    def list_competitions(self) -> List[CompetitionSource]:
+        """Preserve the legacy flattened competition listing."""
+        return [
+            source
+            for sources in self._sources.values()
+            for source in sources
+        ]
+
+    def is_available(self, competition_id: str) -> bool:
+        """
+        A competition is available only when at least one registered source
+        explicitly reports available coverage.
+        """
+        return any(
+            source.coverage_status == "available"
+            for source in self._sources.get(competition_id, [])
+        )

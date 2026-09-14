@@ -1,0 +1,305 @@
+from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional
+
+
+@dataclass(frozen=True)
+class CompetitionDefinition:
+    competition_id: str
+    competition_name: str
+    country_code: Optional[str]
+    region: str
+    tier: str
+    gender: str
+    format: str
+    season: str
+    status: str = "DISCOVERED"
+
+
+class GlobalCompetitionUniverse:
+    """
+    V1.3 catalogue of known football competitions.
+
+    IMPORTANT:
+    This catalogue records competition identity/discovery only.
+    It does NOT claim that a data source is reachable or that
+    fixtures are currently available.
+    """
+
+    def __init__(self) -> None:
+        self._competitions: Dict[str, CompetitionDefinition] = {}
+
+    def register(self, competition: CompetitionDefinition) -> None:
+        if not competition.competition_id:
+            raise ValueError("competition_id is required.")
+
+        self._competitions[competition.competition_id] = competition
+
+    def get(self, competition_id: str) -> Optional[CompetitionDefinition]:
+        return self._competitions.get(competition_id)
+
+    def all(self) -> List[CompetitionDefinition]:
+        return list(self._competitions.values())
+
+    def by_region(self, region: str) -> List[CompetitionDefinition]:
+        return [
+            competition
+            for competition in self._competitions.values()
+            if competition.region.lower() == region.lower()
+        ]
+
+    def by_country(self, country_code: str) -> List[CompetitionDefinition]:
+        code = country_code.upper()
+
+        return [
+            competition
+            for competition in self._competitions.values()
+            if competition.country_code
+            and competition.country_code.upper() == code
+        ]
+
+    def to_dict(self) -> List[Dict[str, object]]:
+        return [
+            asdict(competition)
+            for competition in self._competitions.values()
+        ]
+
+
+def build_v13_global_competition_universe() -> GlobalCompetitionUniverse:
+    universe = GlobalCompetitionUniverse()
+
+    competitions = (
+        # --------------------------------------------------
+        # EUROPE
+        # --------------------------------------------------
+        ("eng.1", "English Premier League", "GB", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ita.1", "Italian Serie A", "IT", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("de.1", "Deutsche Bundesliga", "DE", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("es.1", "Spain Primera División", "ES", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("fr.1", "French Ligue 1", "FR", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("pt.1", "Portuguese Primeira Liga", "PT", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("nl.1", "Netherlands Eredivisie", "NL", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("hr.1", "Croatian Football League", "HR", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("cz.1", "Czech First League", "CZ", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("pl.1", "Polish Ekstraklasa", "PL", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ro.1", "Romanian Liga I", "RO", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("hu.1", "Hungarian NB I", "HU", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("rs.1", "Serbian SuperLiga", "RS", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ua.1", "Ukrainian Premier League", "UA", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("bg.1", "Bulgarian First League", "BG", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("si.1", "Slovenian PrvaLiga", "SI", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("sk.1", "Slovak Niké Liga", "SK", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ba.1", "Bosnian Premier League", "BA", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("cy.1", "Cyprus First Division", "CY", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ge.1", "Georgian Erovnuli Liga", "GE", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("am.1", "Armenian Premier League", "AM", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("az.1", "Azerbaijan Premier League", "AZ", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("kz.1", "Kazakhstan Premier League", "KZ", "EUROPE",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        # Continental
+        ("uefa.cl", "UEFA Champions League", None, "EUROPE",
+         "CONTINENTAL", "MEN", "CUP", "2026/27"),
+
+        # --------------------------------------------------
+        # AMERICAS
+        # --------------------------------------------------
+        ("us.1", "Major League Soccer", "US", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("ca.1", "Canadian Premier League", "CA", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("mx.1", "Liga MX", "MX", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("cr.1", "Costa Rica Liga FPD", "CR", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("hn.1", "Honduras Liga Nacional", "HN", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("pa.1", "Panama LPF", "PA", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("ar.1", "Argentina Liga Profesional", "AR", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("br.1", "Brazil Serie A", "BR", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("cl.1", "Chile Primera División", "CL", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("co.1", "Colombia Primera A", "CO", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("ec.1", "Ecuador LigaPro", "EC", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("pe.1", "Peru Liga 1", "PE", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("uy.1", "Uruguay Primera División", "UY", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("py.1", "Paraguay Primera División", "PY", "AMERICAS",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("bo.1", "Bolivia División de Fútbol Profesional", "BO",
+         "AMERICAS", "1", "MEN", "LEAGUE", "2026"),
+
+        ("conmebol.lib", "CONMEBOL Libertadores", None, "AMERICAS",
+         "CONTINENTAL", "MEN", "CUP", "2026"),
+
+        # --------------------------------------------------
+        # ASIA / OCEANIA
+        # --------------------------------------------------
+        ("jp.1", "Japan J1 League", "JP", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("kr.1", "K League 1", "KR", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("cn.1", "Chinese Super League", "CN", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("au.1", "A-League Men", "AU", "OCEANIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("in.1", "Indian Super League", "IN", "ASIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("sa.1", "Saudi Pro League", "SA", "ASIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("qa.1", "Qatar Stars League", "QA", "ASIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ae.1", "UAE Pro League", "AE", "ASIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ir.1", "Persian Gulf Pro League", "IR", "ASIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("th.1", "Thai League 1", "TH", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("my.1", "Malaysia Super League", "MY", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("id.1", "Liga 1 Indonesia", "ID", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("vn.1", "V.League 1", "VN", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("uz.1", "Uzbekistan Super League", "UZ", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("iq.1", "Iraq Stars League", "IQ", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("jo.1", "Jordan Pro League", "JO", "ASIA",
+         "1", "MEN", "LEAGUE", "2026"),
+
+        ("il.1", "Israel Premier League", "IL", "ASIA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        # --------------------------------------------------
+        # AFRICA
+        # --------------------------------------------------
+        ("za.1", "South African Premiership", "ZA", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("eg.1", "Egyptian Premier League", "EG", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ma.1", "Botola Pro", "MA", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("dz.1", "Algerian Ligue 1", "DZ", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("tn.1", "Tunisian Ligue 1", "TN", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ng.1", "Nigeria Premier Football League", "NG", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("gh.1", "Ghana Premier League", "GH", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ke.1", "Kenya Premier League", "KE", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("tz.1", "Tanzanian Premier League", "TZ", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ug.1", "Uganda Premier League", "UG", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("zm.1", "Zambia Super League", "ZM", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("ao.1", "Angolan Girabola", "AO", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("cd.1", "Linafoot", "CD", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        ("sn.1", "Senegal Premier League", "SN", "AFRICA",
+         "1", "MEN", "LEAGUE", "2026/27"),
+
+        # Continental
+        ("caf.cl", "CAF Champions League", None, "AFRICA",
+         "CONTINENTAL", "MEN", "CUP", "2026/27"),
+    )
+
+    for values in competitions:
+        universe.register(CompetitionDefinition(*values))
+
+    return universe

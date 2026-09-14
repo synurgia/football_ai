@@ -1,0 +1,208 @@
+from typing import Any, Dict, List
+
+from app.data_registry.default_registry import build_default_registry
+from app.data_registry.global_competition_universe import (
+    GlobalCompetitionUniverse,
+    build_v13_global_competition_universe,
+)
+
+
+class V13CompetitionCoverage:
+    """
+    V1.3 bridge between:
+
+        GlobalCompetitionUniverse
+                +
+        verified CompetitionRegistry
+
+    The universe establishes competition identity.
+    The verified registry establishes actual source coverage.
+
+    This class does not promote discovered competitions to verified.
+    """
+
+    def __init__(
+        self,
+        universe: GlobalCompetitionUniverse | None = None,
+    ) -> None:
+        self.universe = (
+            universe
+            if universe is not None
+            else build_v13_global_competition_universe()
+        )
+
+        self.verified_registry = build_default_registry()
+
+    def get(self, competition_id: str) -> Dict[str, Any]:
+        competition = self.universe.get(competition_id)
+
+        if competition is None:
+            return {
+                "competition_id": competition_id,
+                "status": "UNKNOWN_COMPETITION",
+                "verified": False,
+                "sources": [],
+            }
+
+        sources = self.verified_registry.get_all(competition_id)
+
+        verified_sources = [
+            {
+                "source_name": source.source_name,
+                "source_url": source.source_url,
+                "coverage_status": source.coverage_status,
+                "competition_name": source.competition_name,
+            }
+            for source in sources
+            if source.coverage_status == "available"
+        ]
+
+        if verified_sources:
+            coverage_status = "VERIFIED_AVAILABLE"
+        else:
+            coverage_status = "DISCOVERED_NOT_VERIFIED"
+
+        return {
+            "competition_id": competition.competition_id,
+            "competition_name": competition.competition_name,
+            "country_code": competition.country_code,
+            "region": competition.region,
+            "tier": competition.tier,
+            "gender": competition.gender,
+            "format": competition.format,
+            "season": competition.season,
+            "universe_status": competition.status,
+            "status": coverage_status,
+            "verified": bool(verified_sources),
+            "sources": verified_sources,
+        }
+
+    def all(self) -> List[Dict[str, Any]]:
+        return [self.get(item.competition_id) for item in self.universe.all()]
+
+    def verified(self) -> List[Dict[str, Any]]:
+        return [
+            item
+            for item in self.all()
+            if item["status"] == "VERIFIED_AVAILABLE"
+        ]
+
+    def unverified(self) -> List[Dict[str, Any]]:
+        return [
+            item
+            for item in self.all()
+            if item["status"] == "DISCOVERED_NOT_VERIFIED"
+        ]
+
+    def summary(self) -> Dict[str, int]:
+        all_items = self.all()
+
+        return {
+            "total_competitions": len(all_items),
+            "verified_available": sum(
+                1 for item in all_items
+                if item["status"] == "VERIFIED_AVAILABLE"
+            ),
+            "discovered_not_verified": sum(
+                1 for item in all_items
+                if item["status"] == "DISCOVERED_NOT_VERIFIED"
+            ),
+        }
+
+
+if __name__ == "__main__":
+    coverage = V13CompetitionCoverage()
+
+    print("==================================================")
+    print("V1.3 COMPETITION COVERAGE BRIDGE")
+    print("==================================================")
+
+    summary = coverage.summary()
+
+    print("TOTAL:", summary["total_competitions"])
+    print("VERIFIED AVAILABLE:", summary["verified_available"])
+    print("DISCOVERED NOT VERIFIED:", summary["discovered_not_verified"])
+
+    print()
+    print("=== VERIFIED COMPETITIONS ===")
+
+    for item in coverage.verified():
+        source_names = [
+            source["source_name"]
+            for source in item["sources"]
+        ]
+
+        print(
+            item["competition_id"],
+            "|",
+            item["competition_name"],
+            "|",
+            item["status"],
+            "|",
+            source_names,
+        )
+
+    print()
+    print("=== KEY UNVERIFIED COMPETITIONS ===")
+
+    for competition_id in (
+        "ke.1",
+        "uefa.cl",
+        "br.1",
+        "jp.1",
+        "za.1",
+    ):
+        item = coverage.get(competition_id)
+
+        print(
+            item["competition_id"],
+            "|",
+            item.get("competition_name"),
+            "|",
+            item["status"],
+        )
+
+    print()
+    print("=== UNKNOWN COMPETITION TEST ===")
+
+    unknown = coverage.get("does.not.exist")
+
+    print(
+        unknown["competition_id"],
+        "|",
+        unknown["status"],
+        "|",
+        "VERIFIED:",
+        unknown["verified"],
+    )
+
+    if summary["total_competitions"] != 72:
+        raise SystemExit("FAIL: expected 72 competition identities.")
+
+    if summary["verified_available"] != 7:
+        raise SystemExit(
+            "FAIL: expected exactly 7 verified competitions."
+        )
+
+    if summary["discovered_not_verified"] != 65:
+        raise SystemExit(
+            "FAIL: expected 65 discovered-but-unverified competitions."
+        )
+
+    if coverage.get("ke.1")["status"] != "DISCOVERED_NOT_VERIFIED":
+        raise SystemExit(
+            "FAIL: Kenya Premier League was incorrectly verified."
+        )
+
+    if coverage.get("eng.1")["status"] != "VERIFIED_AVAILABLE":
+        raise SystemExit(
+            "FAIL: English Premier League lost verified status."
+        )
+
+    print()
+    print("RESULT: PASS")
+    print("72 COMPETITION IDENTITIES PRESERVED")
+    print("7 VERIFIED SOURCES PRESERVED")
+    print("65 REMAIN DISCOVERED / NOT VERIFIED")
+    print("NO SOURCE STATUS WAS FABRICATED")
+    print("==================================================")
