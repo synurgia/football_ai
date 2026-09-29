@@ -1,23 +1,41 @@
 from datetime import date, timedelta
 from typing import Any, Dict, Optional
 
-from app.v13_ai_intelligence_engine import http_get, ESPN_BASE
+from app.data_registry.v13_match_discovery import extract_match_candidates, extract_fixture_bridge_candidates
+from app.data_registry.v13_match_extractor import extract_from_snippet
+from app.data_registry.match_identity import MatchIdentity
 
 
 class V13MatchSourceAdapter:
     """
     V1.3 source-neutral match retrieval seam.
 
-    This adapter normalizes source-specific fixture responses into the
-    existing match object expected by the protected AI reasoning engine.
+    Uses the already retrieved V1.3 mapped source pool. No source is given
+    priority. ESPN/OpenFoot may participate only when present in the supplied
+    source pool.
 
-    It does not assign source priority and does not modify Pieces 1-9.
+    The adapter normalizes evidence-bearing source content into the existing
+    match object expected by the protected AI reasoning engine.
     """
 
     def _name_matches(self, candidate: str, target: str) -> bool:
         c = (candidate or "").lower().strip()
         t = (target or "").lower().strip()
-        return bool(c and t and (t in c or c in t))
+        if not c or not t:
+            return False
+
+        def norm(value: str) -> str:
+            import re
+            return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+        c_norm = norm(c)
+        t_norm = norm(t)
+
+        return (
+            c_norm == t_norm
+            or t_norm in c_norm
+            or c_norm in t_norm
+        )
 
     def _dates_to_check(self, around_date: Optional[str]) -> list[str]:
         if around_date:
@@ -25,114 +43,173 @@ class V13MatchSourceAdapter:
 
         today = date.today()
         return [
-            (today + timedelta(days=delta)).strftime("%Y%m%d")
+            (today + timedelta(days=delta)).strftime("%Y-%m-%d")
             for delta in range(-3, 15)
         ]
 
-    def find_via_espn(
+    def _candidate_matches_teams(
         self,
-        *,
-        espn_slug: str,
+        candidate: Dict[str, Any],
         team_a: str,
         team_b: str,
-        around_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> bool:
+        home = candidate.get("home_team") or ""
+        away = candidate.get("away_team") or ""
 
-        for match_date in self._dates_to_check(around_date):
-            url = f"{ESPN_BASE}/{espn_slug}/scoreboard"
+        direct = (
+            self._name_matches(home, team_a)
+            and self._name_matches(away, team_b)
+        )
 
-            data, status = http_get(
-                url,
-                params={"dates": match_date},
-            )
+        reversed_order = (
+            self._name_matches(home, team_b)
+            and self._name_matches(away, team_a)
+        )
 
-            if data is None:
-                continue
+        return direct or reversed_order
 
-            for event in data.get("events", []):
-                competition = event.get("competitions", [{}])[0]
-                competitors = competition.get("competitors", [])
+    def _date_matches(
+        self,
+        candidate: Dict[str, Any],
+        around_date: Optional[str],
+    ) -> bool:
+        if not around_date:
+            return True
 
-                names = [
-                    c.get("team", {}).get("displayName", "")
-                    for c in competitors
-                ]
+        candidate_date = str(candidate.get("date") or "").strip()
+        requested = str(around_date).replace("/", "-").strip()
 
-                if len(names) != 2:
-                    continue
+        return candidate_date == requested
 
-                matched = (
-                    self._name_matches(names[0], team_a)
-                    and self._name_matches(names[1], team_b)
-                ) or (
-                    self._name_matches(names[0], team_b)
-                    and self._name_matches(names[1], team_a)
-                )
+    def _build_match(
+        self,
+        candidate: Dict[str, Any],
+        *,
+        competition_id: str,
+        competition_name: str,
+        season: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        home = candidate.get("home_team")
+        away = candidate.get("away_team")
+        match_date = candidate.get("date")
+        match_time = candidate.get("time")
 
-                if not matched:
-                    continue
+        # Canonical identity requires all five fields. Do not fabricate any.
+        if not all((competition_id, season, home, away, match_date, match_time)):
+            return None
 
-                venue = competition.get("venue", {}).get("fullName")
+        kickoff_at = f"{match_date}T{match_time}:00"
 
-                return {
-                    "match_status": "FOUND",
-                    "match_id": event.get("id"),
-                    "home_team": next(
-                        (
-                            c.get("team", {}).get("displayName")
-                            for c in competitors
-                            if c.get("homeAway") == "home"
-                        ),
-                        None,
-                    ),
-                    "away_team": next(
-                        (
-                            c.get("team", {}).get("displayName")
-                            for c in competitors
-                            if c.get("homeAway") == "away"
-                        ),
-                        None,
-                    ),
-                    "kickoff_at": event.get("date"),
-                    "match_date": match_date,
-                    "venue": venue,
-                    "season": data.get("season", {}).get("year"),
-                    "status_detail": (
-                        competition
-                        .get("status", {})
-                        .get("type", {})
-                        .get("description")
-                    ),
-                    "source_id": "espn_football",
-                    "source_name": "ESPN Soccer",
-                    "source_url": url,
-                    "raw_event": event,
-                }
-
-        return {
-            "match_status": "NOT_FOUND",
-            "source_id": "espn_football",
-            "source_name": "ESPN Soccer",
+        match = {
+            "competition": competition_id,
+            "competition_name": competition_name,
+            "season": str(season),
+            "home_team": home,
+            "away_team": away,
+            "kickoff_at": kickoff_at,
+            "match_date": match_date,
+            "venue": candidate.get("venue"),
+            "source_id": candidate.get("source_id"),
+            "source_name": candidate.get("source_name"),
+            "source_url": candidate.get("source_url"),
+            "evidence_snippet": candidate.get("evidence_snippet"),
+            "match_status": "FOUND",
         }
+
+        # The existing canonical identity remains the final promotion gate.
+        try:
+            match["match_id"] = MatchIdentity.match_id(match)
+        except (TypeError, ValueError):
+            return None
+
+        return match
 
     def find_match(
         self,
         *,
-        espn_slug: str,
+        competition_id: str,
+        competition_name: str,
         team_a: str,
         team_b: str,
         around_date: Optional[str] = None,
+        source_retrieval: Optional[Dict[str, Any]] = None,
+        season: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Current V1.3 implementation.
+        Resolve a fixture from the V1.3 mapped/retrieved source pool.
 
-        ESPN is used here only because its match-query mechanism is already
-        verified in the protected AI library. The adapter is the replacement
-        seam for additional V1.3 sources; ESPN is not declared authoritative.
+        No source priority is assigned. Every SOURCE_RETRIEVED source is
+        treated as applicable evidence and candidates are matched against
+        the requested teams/date.
+
+        The returned object preserves the contract expected by V1.4.
         """
-        return self.find_via_espn(
-            espn_slug=espn_slug,
-            team_a=team_a,
-            team_b=team_b,
-            around_date=around_date,
-        )
+
+        if not source_retrieval:
+            return {
+                "match_status": "NOT_FOUND",
+                "reason": "NO_V13_SOURCE_RETRIEVAL",
+            }
+
+        all_candidates: list[Dict[str, Any]] = []
+
+        for source in source_retrieval.get("results", []):
+            if source.get("status") != "SOURCE_RETRIEVED":
+                continue
+
+            content = source.get("content") or ""
+            if not content:
+                continue
+
+            discovered = extract_match_candidates(content)
+            bridge_candidates = extract_fixture_bridge_candidates(content)
+            if bridge_candidates:
+                discovered.extend(bridge_candidates)
+
+            for raw_candidate in discovered:
+                candidate = extract_from_snippet(
+                    competition_id=competition_id,
+                    competition_name=competition_name,
+                    source_id=source.get("source_id", ""),
+                    source_name=source.get("source_name", ""),
+                    source_url=(
+                        source.get("final_url")
+                        or source.get("source_url")
+                        or ""
+                    ),
+                    candidate=raw_candidate,
+                )
+
+                if candidate.get("identity_status") != "STRUCTURED_CANDIDATE":
+                    continue
+
+                if not self._candidate_matches_teams(
+                    candidate,
+                    team_a,
+                    team_b,
+                ):
+                    continue
+
+                if not self._date_matches(candidate, around_date):
+                    continue
+
+                all_candidates.append(candidate)
+
+        # Promote only a candidate with a complete canonical identity.
+        for candidate in all_candidates:
+            match = self._build_match(
+                candidate,
+                competition_id=competition_id,
+                competition_name=competition_name,
+                season=season,
+            )
+            if match:
+                return match
+
+        return {
+            "match_status": "NOT_FOUND",
+            "reason": "NO_CANONICAL_MATCH_FROM_MAPPED_SOURCES",
+            "source_count": source_retrieval.get("source_count", 0),
+            "retrieved_sources": source_retrieval.get("retrieved", 0),
+            "candidate_count": len(all_candidates),
+        }

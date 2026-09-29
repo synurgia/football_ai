@@ -75,6 +75,15 @@ so in the source log.
 
 from __future__ import annotations
 
+import os as _os
+_BATCH_MODE = _os.environ.get("FOOTBALL_AI_BATCH_MODE", "0") == "1"
+
+def _batch_print(*args, **kwargs):
+    """Print only when not in batch mode."""
+    if not _BATCH_MODE:
+        print(*args, **kwargs)
+
+
 from app.v1_2_piece_evidence_bridge import V12PieceEvidenceBridge
 from app.v1_2_semantic_resolver import V12SemanticResolver
 
@@ -90,7 +99,7 @@ from typing import Any, Optional
 try:
     import requests
 except ImportError:
-    print("This script needs the 'requests' library. Install it with:\n"
+    _batch_print("This script needs the 'requests' library. Install it with:\n"
           "    pip install requests")
     sys.exit(1)
 
@@ -1216,51 +1225,66 @@ def compute_readiness(match: dict, qas: list[QuestionAnswer]) -> str:
     return "READY" if resolved >= max(1, len(qas) // 2) else "PREPARATION"
 
 
-def print_dashboard(competition: dict, match: dict, qas: list[QuestionAnswer],
-                     readiness: str, five_d: Optional[dict], reasoning: Optional[dict]):
-    print("=" * 78)
-    print("FOOTBALL AI V1.4 — FIVE-DIMENSIONAL INTELLIGENCE DASHBOARD")
-    print("=" * 78)
-    print(f"COMPETITION   : {competition.get('competition_name_canonical')} ({competition.get('competition_id')})")
-    print(f"IDENTITY      : {competition.get('competition_identity_status')}")
+def print_dashboard(
+    competition: dict,
+    match: dict,
+    qas: list[QuestionAnswer],
+    readiness: str,
+    five_d: Optional[dict],
+    reasoning: Optional[dict],
+    v1_2_reasoning: Optional[dict] = None,
+):
+    _batch_print("=" * 78)
+    _batch_print("FOOTBALL AI V1.4 — FIVE-DIMENSIONAL INTELLIGENCE DASHBOARD")
+    _batch_print("=" * 78)
+    _batch_print(
+        f"COMPETITION   : "
+        f"{competition.get('competition_name_canonical')} "
+        f"({competition.get('competition_id')})"
+    )
+    _batch_print(f"IDENTITY      : {competition.get('competition_identity_status')}")
+
     if match.get("match_status") == "FOUND":
-        print(f"MATCH         : {match['home_team']} (H) vs {match['away_team']} (A)")
-        print(f"KICKOFF       : {match.get('kickoff_at')}")
-        print(f"VENUE         : {match.get('venue')}")
+        _batch_print(f"MATCH         : {match.get('home_team')} (H) vs {match.get('away_team')} (A)")
+        _batch_print(f"KICKOFF       : {match.get('kickoff_at')}")
+        _batch_print(f"VENUE         : {match.get('venue')}")
     else:
-        print("MATCH         : NOT FOUND")
-    print(f"READINESS     : {readiness}")
-    print("-" * 78)
-    print("QUESTIONS & ANSWERS:")
-    for qa in qas:
-        print(f"  [{qa.question_id}] {qa.question_text}")
-        print(f"      status={qa.answer_status}  type={qa.resolution_type}  confidence={qa.confidence}")
-        print(f"      answer={qa.answer}")
-        if qa.missing_information:
-            print(f"      missing={qa.missing_information}")
+        _batch_print("MATCH         : NOT FOUND")
+
+    _batch_print(f"READINESS     : {readiness}")
+    _batch_print("-" * 78)
+
+    if v1_2_reasoning and v1_2_reasoning.get("questions"):
+        questions = v1_2_reasoning["questions"]
+        _batch_print(f"QUESTIONS & ANSWERS: {len(questions)} CANONICAL V1.2 QUESTIONS")
+
+        for item in questions:
+            _batch_print(f"  [{item.get('question_id')}] {item.get('question_text', '')}")
+            _batch_print(
+                f"      status={item.get('status')} "
+                f"confidence={item.get('confidence')}"
+            )
+            _batch_print(f"      answer={item.get('answer')}")
+
+            missing = item.get("missing_evidence") or []
+            if missing:
+                _batch_print(f"      missing={', '.join(map(str, missing))}")
+    else:
+        _batch_print("QUESTIONS & ANSWERS: V1.2 STATE NOT AVAILABLE")
+
+    _batch_print("-" * 78)
+    _batch_print("FIVE-DIMENSIONAL INTELLIGENCE:")
+
     if five_d:
-        print("-" * 78)
-        print("FIVE-DIMENSIONAL MATRIX:")
-        print(f"  Momentum delta        : {five_d['dim_1_momentum_delta']}")
-        print(f"  Offensive threat      : {five_d['dim_2_offensive_threat']}")
-        print(f"  Defensive stability   : {five_d['dim_3_defensive_stability']}")
-        print(f"  Volatility            : {five_d['dim_4_volatility_score']}")
-        print(f"  Composite index (-100..+100): {five_d['dim_5_composite_index']}")
-        print(f"  Raw statistical state : {five_d['raw_statistical_state']}")
+        print(f"  {five_d}")
+
     if reasoning:
         print("-" * 78)
-        print("5D INTELLIGENCE — REASONED VERDICT:")
-        print(f"  {reasoning['narrative']}")
-        print(f"  Park-the-bus pattern detected : {reasoning['park_bus_pattern_detected']}")
-        print(f"  FINAL VERDICT                 : {reasoning['final_verdict']}  (confidence: {reasoning['confidence']})")
-        print(f"  Why                            : {reasoning['verdict_reasoning']}")
-        print(f"  Caveat                         : {reasoning['explicit_caveat']}")
+        print("REASONING:")
+        print(f"  {reasoning}")
+
     print("=" * 78)
 
-
-# ===========================================================================
-# SECTION 14 — MAIN PIPELINE
-# ===========================================================================
 def run(team_a: str, team_b: str, competition_id: str, date: Optional[str] = None) -> dict:
     log = EvidenceLog()
     competition = resolve_competition(competition_id)
@@ -1268,34 +1292,141 @@ def run(team_a: str, team_b: str, competition_id: str, date: Optional[str] = Non
         print(json.dumps(competition, indent=2))
         return {"status": "UNRESOLVED_COMPETITION", "competition": competition}
 
+    # V1.3 MULTI-SOURCE EVIDENCE RETRIEVAL
+    # Retrieve every explicitly mapped source for this competition.
+    # No source is primary and no source is silently substituted.
+    from app.data_registry.v13_source_retrieval_service import (
+        V13SourceRetrievalService,
+    )
+    from app.data_registry.global_competition_universe import (
+        build_v13_global_competition_universe,
+    )
+
+    v13_retrieval_service = V13SourceRetrievalService(
+        build_v13_global_competition_universe()
+    )
+
+    v13_source_retrieval = (
+        v13_retrieval_service.retrieve_mapped_sources(
+            competition_id
+        )
+    )
+
     from app.data_registry.v1_3_match_source_adapter import V13MatchSourceAdapter
 
     source_adapter = V13MatchSourceAdapter()
     match = source_adapter.find_match(
-        espn_slug=competition["espn_slug"],
+        competition_id=competition_id,
+        competition_name=competition.get("name") or competition.get(
+            "competition_name"
+        ) or str(competition_id),
         team_a=team_a,
         team_b=team_b,
         around_date=date,
+        source_retrieval=v13_source_retrieval,
+        season=competition.get("season"),
     )
 
     # V1.3 question-framework wire:
     # Existing Piece 1-8 analytical state remains authoritative.
+    qas: list[QuestionAnswer] = []
     # The existing 37-question bridge/resolver consumes that state.
     try:
+        # V1.3: use the EXISTING Pieces 1-8 analytical pipeline.
+        # This is the same protected path used by prediction_service.py.
+        # No new question system and no replacement analytical logic.
+        from app.orchestration.analytical_pipeline import (
+            PreMatchAnalyticalPipeline,
+        )
+        from app.services.prediction_service import _build_central_team
+        from app.services.prediction_service import PreMatchData
+
+        central_match = PreMatchData(
+            competition=competition,
+            home_team=_build_central_team(
+                {"team_name": team_a},
+                True,
+            ),
+            away_team=_build_central_team(
+                {"team_name": team_b},
+                False,
+            ),
+            market_odds={},
+            data_sources={},
+        )
+
+        analytical_pipeline = PreMatchAnalyticalPipeline(
+            central_match
+        )
+        analytical_state = analytical_pipeline.run()
+
+        # Existing V1.2 evidence bridge and semantic resolver.
         question_bridge = V12PieceEvidenceBridge()
-        question_state = question_bridge.build_evidence_state(analytical_state)
+        question_state = question_bridge.build_evidence_state(
+            analytical_state
+        )
+
         question_state = V12SemanticResolver().resolve_all(
             question_state,
             analytical_state,
         )
+
+        # Preserve the V1.3 retrieved source pool alongside the
+        # existing Piece 1-8 evidence. Sources remain additive.
+        v13_retrieved_evidence = [
+            item
+            for item in v13_source_retrieval.get("results", [])
+            if item.get("status") == "SOURCE_RETRIEVED"
+            and item.get("content")
+        ]
+
+        # V1.3: feed resolver answers back into the live AI question output.
+        # The existing resolver remains authoritative; no new questions are created.
+        resolved_items = (
+            question_state.get("questions", [])
+            if isinstance(question_state, dict)
+            else []
+        )
+
+        if isinstance(resolved_items, list):
+            resolved_by_id = {
+                str(item.get("id")): item
+                for item in resolved_items
+                if isinstance(item, dict) and item.get("id")
+            }
+
+            for qa in qas:
+                item = resolved_by_id.get(str(qa.question_id))
+                if item:
+                    if item.get("answer") is not None:
+                        qa.answer = item.get("answer")
+                    if item.get("answer_status"):
+                        qa.answer_status = item.get("answer_status")
+                    if item.get("confidence") is not None:
+                        qa.confidence = item.get("confidence")
+                    if item.get("reasoning"):
+                        qa.reasoning = item.get("reasoning")
     except Exception as exc:
         question_state = None
         question_state_error = str(exc)
+        print("V1.3 RESOLVER ERROR:", repr(exc))
     else:
         question_state_error = None
     match["_espn_slug"] = competition["espn_slug"]
 
+    # V1.3: retrieve the EXISTING registered questions and make them
+    # part of the live AI reasoning output. No new question system.
+    from app.v2_question_registry import get_all_questions
+
+    registered_questions = get_all_questions()
     qas: list[QuestionAnswer] = []
+
+    # Preserve the registered question definitions for the reasoning layer.
+    existing_question_registry = {
+        str(q.get("id")): q
+        for q in registered_questions
+        if isinstance(q, dict) and q.get("id")
+    }
     qas.append(resolve_kickoff(log, match, competition_id, team_a, team_b))
     qas.append(resolve_venue(log, match, competition_id))
     form_qa, home_matches, away_matches = resolve_form(log, match, competition_id)
@@ -1351,7 +1482,28 @@ def run(team_a: str, team_b: str, competition_id: str, date: Optional[str] = Non
                                                "MODERATE-HIGH": 0.7}.get(reasoning["confidence"], 0.5)))
 
     readiness = compute_readiness(match, qas)
-    print_dashboard(competition, match, qas, readiness, five_d_matrix, reasoning)
+
+    # V1.2 canonical 37-question reasoning state.
+    # Uses the existing V1.2 evidence/reasoning architecture; does not replace
+    # the protected V1.1 / V1.3 analytical pipeline.
+    v1_2_reasoning = None
+    try:
+        from app.v1_2_v13_evidence_bridge import V12V13EvidenceBridge
+
+        bridge = V12V13EvidenceBridge()
+        v1_2_packet = {
+            "mapped_source_count": 0,
+            "retrieval": {},
+            "evidence": [],
+            "total_evidence": 0,
+            "coverage": {},
+        }
+        v1_2_result = bridge.process(match, v1_2_packet)
+        v1_2_reasoning = v1_2_result.get("reasoning")
+    except Exception:
+        v1_2_reasoning = None
+
+    print_dashboard(competition, match, qas, readiness, five_d_matrix, reasoning, v1_2_reasoning)
 
     return {
         "competition": competition,

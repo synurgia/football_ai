@@ -1,0 +1,274 @@
+from datetime import date
+from typing import Any, Dict, Optional
+
+from app.worldwide_daily_scanner import WorldwideDailyMatchScanner
+from app.worldwide_readiness_service import WorldwideReadinessService
+from app.worldwide_team_enrichment import WorldwideTeamEnrichment
+from app.data_registry.rolling_match_store import RollingMatchStore
+from app.worldwide_daily_prediction_service import WorldwideDailyPredictionService
+from app.regional_evidence_collector import RegionalEvidenceCollector
+from app.v1_2_external_evidence_adapter import adapt_collected_source_evidence
+from app.v2_live_evidence_collector import V2LiveEvidenceCollector
+from app.v13_ai_daily_bridge import analyze_daily_matches
+from app.data_registry.evidence_state_store import EvidenceStateStore
+
+
+class WorldwideDailyDataManager:
+
+    async def run_once(self, target_date=None):
+        """Compatibility entry point for one V1.3 daily pipeline execution."""
+        if hasattr(self, "run_daily"):
+            return await self.run_daily(target_date=target_date)
+        if hasattr(self, "run"):
+            result = self.run(target_date=target_date)
+            return await result if hasattr(result, "__await__") else result
+        if hasattr(self, "execute_daily"):
+            result = self.execute_daily(target_date=target_date)
+            return await result if hasattr(result, "__await__") else result
+        raise AttributeError("No daily execution method available")
+    """
+    Controls the daily worldwide football data workflow.
+
+    TODAY:
+        Discover matches and identify candidates that may be processed.
+
+    TOMORROW:
+        Discover matches for preparation only.
+
+    This manager does not run predictions and does not modify Pieces 1-9.
+    """
+
+    def __init__(
+        self,
+        scanner: Optional[WorldwideDailyMatchScanner] = None,
+        store=None,
+        prediction_service: Optional[WorldwideDailyPredictionService] = None,
+    ):
+        self.scanner = scanner or WorldwideDailyMatchScanner()
+        self.store = store or RollingMatchStore()
+        self.prediction_service = (
+            prediction_service or WorldwideDailyPredictionService()
+        )
+
+    def _collect_external_evidence(
+        self,
+        matches: list[Dict[str, Any]], unified_sources=None) -> Dict[str, Any]:
+        collector = RegionalEvidenceCollector(timeout=3.0)
+        live_collector = V2LiveEvidenceCollector()
+
+        capability_by_type = {
+            "fixtures": "schedule",
+            "match_status": "match_status",
+            "teams": "team_identity",
+            "results": "results",
+        }
+
+        states = []
+        collected_matches = 0
+        applied_items = 0
+        verified_sources = 0
+        failed_sources = 0
+        insufficient_sources = 0
+
+        for index, match in enumerate(matches, start=1):
+            home_team = match.get("home_team")
+            away_team = match.get("away_team")
+
+            if not home_team or not away_team:
+                continue
+
+            collected = collector.collect(match)
+
+            state = live_collector.create_match_state(
+                match_id=str(
+                    match.get(
+                        "match_id",
+                        f"{match.get('kickoff_at', 'unknown')}-{home_team}-{away_team}-{index}",
+                    )
+                ),
+                competition=str(match.get("competition", "UNKNOWN")),
+                home_team=str(home_team),
+                away_team=str(away_team),
+            )
+
+            match_applied = 0
+
+            for record in collected.get("records", []):
+                status = str(record.get("status", "")).upper()
+
+                if status == "VERIFIED":
+                    verified_sources += 1
+                elif status == "FAILED":
+                    failed_sources += 1
+                elif status in {"INSUFFICIENT_EVIDENCE", "NOT_CONFIGURED"}:
+                    insufficient_sources += 1
+
+                if record.get("source_id") != "espn_global_soccer":
+                    continue
+
+                for evidence_type in record.get("evidence_types", []):
+                    capability = capability_by_type.get(evidence_type)
+
+                    if capability is None:
+                        continue
+
+                    envelope = adapt_collected_source_evidence(
+                        record,
+                        capability=capability,
+                    )
+
+                    applied = live_collector.apply_external_evidence(
+                        state,
+                        envelope,
+                    )
+
+                    match_applied += len(applied)
+
+            states.append(state)
+            collected_matches += 1
+            applied_items += match_applied
+
+        evidence_store = EvidenceStateStore()
+        evidence_store.save_states(states)
+
+        return {
+            "prediction_result": prediction_result,
+
+            "matches": collected_matches,
+            "applied_items": applied_items,
+            "verified_sources": verified_sources,
+            "failed_sources": failed_sources,
+            "insufficient_sources": insufficient_sources,
+            "states": states,
+            "persisted_states": evidence_store.count(),
+        }
+
+    def run(
+        self,
+        target_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+
+        if target_date is None:
+            target = date.today()
+            target_date = target.isoformat()
+        else:
+            target = date.fromisoformat(target_date)
+
+        target_date = target.isoformat()
+
+        scan = self.scanner.scan(
+            target_date=target_date,
+            include_tomorrow=True,
+        )
+
+        # Store discovered matches FIRST.
+        # Evidence failures must never remove a match from the dashboard.
+        today_ids = self.store.upsert_many(
+            scan.get("today", []),
+            "today",
+        )
+
+        tomorrow_ids = self.store.upsert_many(
+            scan.get("tomorrow", []),
+            "tomorrow",
+        )
+
+        try:
+            enrichment_result = WorldwideTeamEnrichment().enrich_matches(
+                scan.get("today", [])
+            )
+        except Exception as exc:
+            enrichment_result = {
+                "status": "failed",
+                "error": str(exc),
+                "matches": [],
+            }
+
+        try:
+            # V1.3 SOURCE LAYER: retrieve every applicable mapped source
+            # before the existing V1.2 evidence/question pipeline.
+            v13_mapped_sources = []
+            for _match in scan.get("today", []):
+                _competition_id = _match.get("competition_id")
+                if _competition_id:
+                    _retrieved = self.v13_sources.retrieve_mapped_sources(_competition_id)
+                    if isinstance(_retrieved, list):
+                        v13_mapped_sources.extend(_retrieved)
+                    elif isinstance(_retrieved, dict):
+                        v13_mapped_sources.append(_retrieved)
+            scan["v13_mapped_sources"] = v13_mapped_sources
+        except Exception as exc:
+            scan["v13_mapped_sources"] = []
+            scan["v13_source_error"] = str(exc)
+
+        # ================================================================
+        # V1.3 -> EXISTING PREDICTION PIPELINE
+        # ================================================================
+        # V1.3 discovers and enriches the matches.
+        # V1.2 readiness decides which matches are READY.
+        # The existing WorldwideDailyPredictionService then sends READY
+        # matches through the existing Pieces 1-8 + Piece 9 prediction
+        # service and persists the results.
+        prediction_result = {
+            "requested": 0,
+            "processed": 0,
+            "predictions": [],
+            "persisted": 0,
+        }
+
+        try:
+            readiness_service = WorldwideReadinessService()
+
+            # Preserve the manager's discovered matches and let the
+            # existing readiness service perform its normal gate.
+            readiness_result = readiness_service.evaluate(
+                scan.get("today", [])
+            )
+
+            if isinstance(readiness_result, dict):
+                prediction_result = self.prediction_service.process_ready_matches(
+                    readiness_result
+                )
+
+        except Exception as exc:
+            prediction_result = {
+                "requested": 0,
+                "processed": 0,
+                "predictions": [],
+                "persisted": 0,
+                "status": "failed",
+                "error": str(exc),
+            }
+
+        external_evidence = self._collect_external_evidence(
+            scan.get("today", []),
+            unified_sources=(
+                scan.get("unified_sources", [])
+                + scan.get("v13_mapped_sources", [])
+            ),
+        )
+
+        # ============================================================
+        # V1.3 -> EXISTING PREDICTION PIPELINE
+        # ============================================================
+        prediction_result = {
+            "status": "not_processed",
+            "processed": 0,
+        }
+
+        try:
+            readiness_service = WorldwideReadinessService()
+            readiness_result = readiness_service.evaluate_daily(
+                scan.get("today", [])
+            )
+
+            prediction_result = self.prediction_service.process_ready_matches(
+                readiness_result
+            )
+
+        except Exception as exc:
+            prediction_result = {
+                "status": "failed",
+                "processed": 0,
+                "error": str(exc),
+            }

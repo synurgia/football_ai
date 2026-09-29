@@ -1,0 +1,8 @@
+{
+  "phase": "V1.3_MATCH_EXTRACTION",
+  "source_file": "data/v13_match_discovery_candidates.json",
+  "total_evidence_candidates": 0,
+  "structured_candidates": 0,
+  "unresolved_evidence": 0,
+  "records": []
+}

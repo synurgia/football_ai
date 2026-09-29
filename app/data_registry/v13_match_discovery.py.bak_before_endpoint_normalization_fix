@@ -1,0 +1,643 @@
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urljoin
+
+import httpx
+
+CAPABILITY_FILE = Path("data/v13_source_capability_map.json")
+OUT_FILE = Path("data/v13_match_discovery_candidates.json")
+TIMEOUT = 20.0
+HEADERS = {"User-Agent": "FootballAI-V1.3/1.0"}
+
+MAX_DISCOVERED_LINKS = 12
+MAX_STRUCTURED_ENDPOINTS = 12
+MAX_SCRIPT_LINKS = 8
+
+DATE_RE = re.compile(
+    r"\b(?:20\d{2}[-/]\d{1,2}[-/]\d{1,2}"
+    r"|\d{1,2}[-/]\d{1,2}[-/](?:20)?\d{2})\b"
+)
+
+FOOTBALL_SIGNAL_RE = re.compile(
+    r"\b(?:fixture|fixtures|match|matches|kick[\s-]?off|"
+    r"schedule|result|results|standings|league|cup)\b",
+    re.I,
+)
+
+FIXTURE_ENDPOINT_SIGNAL_RE = re.compile(
+    r"(?:/api(?:/|\b)|api[._/-]|fixtures?|schedules?|matches?|"
+    r"kick[\s_-]*off|results?|calendar|games?|scoreboard)",
+    re.I,
+)
+
+ABSOLUTE_URL_RE = re.compile(
+    r"""https?://[^\s"'<>`]+""",
+    re.I,
+)
+
+
+def clean_text(text):
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def extract_match_candidates(text: str) -> list[dict]:
+    """
+    Extract bounded fixture/match candidates without catastrophic regex
+    backtracking on large HTML or JavaScript documents.
+    """
+    if not text:
+        return []
+
+    cleaned = clean_text(text)
+    if not cleaned:
+        return []
+
+    candidates = []
+    seen = set()
+
+    # Process bounded windows around football-related signal terms.
+    # This preserves the original discovery purpose while preventing
+    # expensive .{0,220} regex scans across multi-megabyte JS.
+    signal_re = re.compile(
+        r"\\b(?:fixture|fixtures|match|matches|kick[- ]?off|schedule|"
+        r"result|results|standings|league|cup)\\b",
+        re.I,
+    )
+
+    date_re = re.compile(r"\\b(?:20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}|"
+                         r"\\d{1,2}[-/]\\d{1,2}[-/]20\\d{2})\\b")
+
+    # Limit the amount of source text examined.
+    max_chars = 1200000
+    cleaned = cleaned[:max_chars]
+
+    for signal in signal_re.finditer(cleaned):
+        left = max(0, signal.start() - 220)
+        right = min(len(cleaned), signal.end() + 420)
+        snippet = cleaned[left:right].strip()
+
+        if not date_re.search(snippet):
+            continue
+
+        key = snippet[:700].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+
+        candidates.append({
+            "snippet": snippet,
+            "date_matches": date_re.findall(snippet),
+        })
+
+        if len(candidates) >= 20:
+            break
+
+    return candidates
+
+def _normalise_endpoint(url):
+    try:
+        parsed = httpx.URL(url)
+        return str(parsed.copy_with(fragment=None))
+    except Exception:
+        return url
+
+
+def discover_structured_endpoints(source_url, source_text):
+    """
+    Generic V1.3 structured/API endpoint discovery.
+
+    Rules:
+    - no provider-specific logic
+    - no source hierarchy
+    - endpoint must be exposed by retrieved source material
+    - same-host endpoints are allowed
+    - explicitly exposed api/json associated hosts are allowed
+    - bounded discovery
+    """
+    try:
+        root_host = httpx.URL(source_url).host
+    except Exception:
+        root_host = None
+
+    candidates = []
+
+    def add(url, reason):
+        if not url:
+            return
+
+        url = _normalise_endpoint(url.strip().rstrip(".,;"))
+
+        try:
+            parsed = httpx.URL(url)
+        except Exception:
+            return
+
+        if parsed.scheme not in {"http", "https"}:
+            return
+
+        if not parsed.host:
+            return
+
+        if not FIXTURE_ENDPOINT_SIGNAL_RE.search(url):
+            return
+
+        if root_host and parsed.host != root_host:
+            if not re.search(r"(?:api|json)", parsed.host, re.I):
+                return
+
+        if any(item["url"] == url for item in candidates):
+            return
+
+        candidates.append(
+            {
+                "url": url,
+                "reason": reason,
+            }
+        )
+
+    # HTML href/src/action references.
+    attr_pattern = re.compile(
+        r"""(?:href|src|action)=["']([^"']+)["']""",
+        re.I,
+    )
+
+    for raw in attr_pattern.findall(source_text):
+        add(
+            urljoin(source_url, raw),
+            "HTML_REFERENCE",
+        )
+
+        if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+            break
+
+    # Absolute API/fixture URLs embedded in JavaScript or metadata.
+    if len(candidates) < MAX_STRUCTURED_ENDPOINTS:
+        for raw in ABSOLUTE_URL_RE.findall(source_text):
+            add(
+                raw,
+                "EMBEDDED_URL",
+            )
+
+            if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+                break
+
+    # Relative API paths embedded in JavaScript strings.
+    if len(candidates) < MAX_STRUCTURED_ENDPOINTS:
+        relative_pattern = re.compile(
+            r"""["']((?:/|\./)(?:[A-Za-z0-9._~-]+/)*
+            (?:api|frontweb/api|fixtures?|schedules?|matches?|
+            results?|calendar|games?)[^"'<> ]*)["']""",
+            re.I | re.X,
+        )
+
+        for raw in relative_pattern.findall(source_text):
+            add(
+                urljoin(source_url, raw),
+                "EMBEDDED_RELATIVE_ENDPOINT",
+            )
+
+            if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+                break
+
+    return candidates
+
+
+def discover_fixture_links(source_url, source_text):
+    """Discover bounded same-domain fixture/schedule pages."""
+    try:
+        root_host = httpx.URL(source_url).host
+    except Exception:
+        return []
+
+    link_pattern = re.compile(
+        r"""href=["']([^"']+)["']""",
+        re.I,
+    )
+
+    link_signals = re.compile(
+        r"(fixture|fixtures|schedule|schedules|match|matches|"
+        r"kick[-_ ]?off|result|results|calendar|games?)",
+        re.I,
+    )
+
+    links = []
+
+    for href in link_pattern.findall(source_text):
+        absolute = urljoin(source_url, href)
+
+        try:
+            parsed = httpx.URL(absolute)
+        except Exception:
+            continue
+
+        if parsed.host != root_host:
+            continue
+
+        if not link_signals.search(absolute):
+            continue
+
+        if absolute not in links:
+            links.append(absolute)
+
+        if len(links) >= MAX_DISCOVERED_LINKS:
+            break
+
+    return links
+
+
+def main():
+    data = json.loads(CAPABILITY_FILE.read_text())
+
+    sources = [
+        x
+        for x in data["capabilities"]
+        if x["coverage_status"] == "VERIFIED"
+        and x["capabilities"].get("fixtures") is True
+    ]
+
+    results = []
+    failures = []
+
+    print("=== V1.3 MATCH DISCOVERY ===")
+    print(
+        "FIXTURE-CAPABLE VERIFIED PAIRS:",
+        len(sources),
+    )
+
+    with httpx.Client(
+        timeout=TIMEOUT,
+        follow_redirects=True,
+        headers=HEADERS,
+    ) as client:
+
+        for item in sources:
+            try:
+                root_url = item.get("url")
+                response = client.get(root_url)
+
+                visited = set()
+                pages = []
+                structured_endpoints = []
+
+                def add_page(
+                    response_obj,
+                    discovery_type="SOURCE_URL",
+                ):
+                    final = str(response_obj.url)
+
+                    if final in visited:
+                        return
+
+                    visited.add(final)
+
+                    pages.append(
+                        {
+                            "url": final,
+                            "http_status": response_obj.status_code,
+                            "content_type": response_obj.headers.get(
+                                "content-type"
+                            ),
+                            "text": response_obj.text,
+                            "discovery_type": discovery_type,
+                        }
+                    )
+
+                # Original mapped source.
+                add_page(response)
+
+                # Existing fixture/schedule HTML discovery.
+                discovered_links = discover_fixture_links(
+                    str(response.url),
+                    response.text,
+                )
+
+                for fixture_url in discovered_links:
+                    if fixture_url in visited:
+                        continue
+
+                    try:
+                        linked_response = client.get(
+                            fixture_url
+                        )
+                        add_page(
+                            linked_response,
+                            "FIXTURE_LINK",
+                        )
+                    except Exception:
+                        continue
+
+                # Discover structured/API endpoints from source HTML.
+                structured_endpoints.extend(
+                    discover_structured_endpoints(
+                        str(response.url),
+                        response.text,
+                    )
+                )
+
+                # Inspect a bounded number of source-owned scripts.
+                script_pattern = re.compile(
+                    r"""<script[^>]+src=["']([^"']+)["']""",
+                    re.I,
+                )
+
+                script_urls = []
+
+                for raw in script_pattern.findall(
+                    response.text
+                ):
+                    absolute = urljoin(
+                        str(response.url),
+                        raw,
+                    )
+
+                    if absolute not in script_urls:
+                        script_urls.append(absolute)
+
+                    if len(script_urls) >= MAX_SCRIPT_LINKS:
+                        break
+
+                for script_url in script_urls:
+                    if (
+                        len(structured_endpoints)
+                        >= MAX_STRUCTURED_ENDPOINTS
+                    ):
+                        break
+
+                    try:
+#                         script_response = client.get(
+#                             script_url
+#                         )
+# 
+                        discovered = (
+                            discover_structured_endpoints(
+                                str(response.url),
+                                script_response.text,
+                            )
+                        )
+
+                        for endpoint in discovered:
+                            if not any(
+                                x["url"]
+                                == endpoint["url"]
+                                for x in structured_endpoints
+                            ):
+                                structured_endpoints.append(
+                                    endpoint
+                                )
+
+                            if (
+                                len(structured_endpoints)
+                                >= MAX_STRUCTURED_ENDPOINTS
+                            ):
+                                break
+
+                    except Exception:
+                        continue
+
+                # Retrieve discovered structured endpoints.
+                endpoint_results = []
+
+                for endpoint in structured_endpoints[
+                    :MAX_STRUCTURED_ENDPOINTS
+                ]:
+                    endpoint_url = endpoint["url"]
+
+                    if endpoint_url in visited:
+                        endpoint_results.append(
+                            {
+                                **endpoint,
+                                "status": "ALREADY_RETRIEVED",
+                            }
+                        )
+                        continue
+
+                    try:
+                        endpoint_response = client.get(
+                            endpoint_url
+                        )
+
+                        status = (
+                            "RETRIEVED"
+                            if endpoint_response.status_code < 400
+                            else "FAILED"
+                        )
+
+                        endpoint_results.append(
+                            {
+                                **endpoint,
+                                "status": status,
+                                "http_status": (
+                                    endpoint_response.status_code
+                                ),
+                                "content_type": (
+                                    endpoint_response.headers.get(
+                                        "content-type"
+                                    )
+                                ),
+                            }
+                        )
+
+                        if (
+                            endpoint_response.status_code < 400
+                            and endpoint_response.text.strip()
+                        ):
+                            add_page(
+                                endpoint_response,
+                                "STRUCTURED_ENDPOINT",
+                            )
+
+                    except Exception as exc:
+                        endpoint_results.append(
+                            {
+                                **endpoint,
+                                "status": "FAILED",
+                                "error": str(exc),
+                            }
+                        )
+
+                # Extract evidence from every successfully retrieved page.
+                all_candidates = []
+
+                for page in pages:
+                    page_candidates = (
+                        extract_match_candidates(
+                            page["text"]
+                        )
+                    )
+
+                    for candidate in page_candidates:
+                        candidate["discovered_url"] = (
+                            page["url"]
+                        )
+                        candidate["http_status"] = (
+                            page["http_status"]
+                        )
+                        candidate["content_type"] = (
+                            page["content_type"]
+                        )
+                        candidate["discovery_type"] = (
+                            page["discovery_type"]
+                        )
+
+                        all_candidates.append(
+                            candidate
+                        )
+
+                unique_candidates = []
+                seen = set()
+
+                for candidate in all_candidates:
+                    key = (
+                        candidate.get(
+                            "evidence_snippet",
+                            "",
+                        ),
+                        candidate.get(
+                            "discovered_url",
+                            "",
+                        ),
+                    )
+
+                    if key in seen:
+                        continue
+
+                    seen.add(key)
+                    unique_candidates.append(
+                        candidate
+                    )
+
+                results.append(
+                    {
+                        "competition_id": item[
+                            "competition_id"
+                        ],
+                        "competition_name": item[
+                            "competition_name"
+                        ],
+                        "source_id": item["source_id"],
+                        "source_name": item["source_name"],
+                        "url": item.get("url"),
+                        "final_url": str(response.url),
+                        "discovered_urls": [
+                            page["url"]
+                            for page in pages
+                        ],
+                        "structured_endpoints": (
+                            endpoint_results
+                        ),
+                        "structured_endpoint_count": (
+                            len(endpoint_results)
+                        ),
+                        "http_status": (
+                            response.status_code
+                        ),
+                        "candidate_count": (
+                            len(unique_candidates)
+                        ),
+                        "candidates": (
+                            unique_candidates
+                        ),
+                        "discovery_status": (
+                            "CANDIDATES_FOUND"
+                            if unique_candidates
+                            else
+                            "NO_STRUCTURED_MATCH_CANDIDATES"
+                        ),
+                    }
+                )
+
+            except Exception as exc:
+                failures.append(
+                    {
+                        "competition_id": item[
+                            "competition_id"
+                        ],
+                        "source_id": item["source_id"],
+                        "url": item.get("url"),
+                        "error": str(exc),
+                    }
+                )
+
+    payload = {
+        "version": "V1.3",
+        "generated_at": (
+            datetime.now(
+                timezone.utc
+            ).isoformat()
+        ),
+        "verified_fixture_pairs": len(sources),
+        "source_results": results,
+        "failures": failures,
+        "rule": (
+            "Discovery is evidence-preserving and conservative. "
+            "Structured/API endpoints are accepted only when their "
+            "URLs are exposed by retrieved source material. "
+            "No match is promoted to a normalized fixture unless "
+            "home team, away team and kickoff can be established "
+            "from source evidence."
+        ),
+    }
+
+    OUT_FILE.write_text(
+        json.dumps(
+            payload,
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
+
+    print(
+        "SOURCE RESULTS:",
+        len(results),
+    )
+
+    print(
+        "SOURCES WITH CANDIDATES:",
+        sum(
+            1
+            for x in results
+            if x["candidate_count"] > 0
+        ),
+    )
+
+    print(
+        "SOURCES WITH STRUCTURED ENDPOINTS:",
+        sum(
+            1
+            for x in results
+            if x["structured_endpoint_count"] > 0
+        ),
+    )
+
+    print(
+        "STRUCTURED ENDPOINTS DISCOVERED:",
+        sum(
+            x["structured_endpoint_count"]
+            for x in results
+        ),
+    )
+
+    print(
+        "SOURCES WITHOUT STRUCTURED CANDIDATES:",
+        sum(
+            1
+            for x in results
+            if x["candidate_count"] == 0
+        ),
+    )
+
+    print(
+        "REQUEST FAILURES:",
+        len(failures),
+    )
+
+    print(
+        "SAVED:",
+        OUT_FILE,
+    )
+
+
+if __name__ == "__main__":
+    main()

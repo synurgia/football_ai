@@ -1,0 +1,1022 @@
+{
+  "version": "V1.3",
+  "active_competitions": 191,
+  "verified_source_competition_pairs": 55,
+  "capabilities": [
+    {
+      "competition_id": "gha.2",
+      "competition_name": "Division One League",
+      "source_id": "ghana_fa_official",
+      "source_name": "Ghana Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Division One League"
+      ],
+      "url": "https://www.ghanafa.org/",
+      "final_url": null
+    },
+    {
+      "competition_id": "cod.1",
+      "competition_name": "Linafoot / Ligue 1",
+      "source_id": "dr_congo_fecofa_official",
+      "source_name": "Congolese Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Linafoot / Ligue 1"
+      ],
+      "url": "https://fecofa.cd/",
+      "final_url": null
+    },
+    {
+      "competition_id": "cod.2",
+      "competition_name": "Ligue 2",
+      "source_id": "dr_congo_fecofa_official",
+      "source_name": "Congolese Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Ligue 2"
+      ],
+      "url": "https://fecofa.cd/",
+      "final_url": null
+    },
+    {
+      "competition_id": "nga.1",
+      "competition_name": "Nigeria Premier Football League",
+      "source_id": "nigeria_nff_official",
+      "source_name": "Nigeria Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Nigeria Premier Football League"
+      ],
+      "url": "https://thenff.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "sen.2",
+      "competition_name": "Ligue 2",
+      "source_id": "senegal_fsf_official",
+      "source_name": "Fédération Sénégalaise de Football",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Ligue 2"
+      ],
+      "url": "https://fsfoot.sn/",
+      "final_url": null
+    },
+    {
+      "competition_id": "ago.1",
+      "competition_name": "Girabola",
+      "source_id": "angola_faf_official",
+      "source_name": "Angolan Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Girabola"
+      ],
+      "url": "https://www.faf.co.ao/",
+      "final_url": null
+    },
+    {
+      "competition_id": "nga.2",
+      "competition_name": "Nigeria National League",
+      "source_id": "nigeria_nff_official",
+      "source_name": "Nigeria Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Nigeria National League"
+      ],
+      "url": "https://thenff.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "gha.1",
+      "competition_name": "Ghana Premier League",
+      "source_id": "ghana_fa_official",
+      "source_name": "Ghana Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Ghana Premier League"
+      ],
+      "url": "https://www.ghanafa.org/",
+      "final_url": null
+    },
+    {
+      "competition_id": "zaf.2",
+      "competition_name": "Motsepe Foundation Championship",
+      "source_id": "south_africa_safa_official",
+      "source_name": "South African Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Motsepe Foundation Championship"
+      ],
+      "url": "https://www.safa.net/",
+      "final_url": null
+    },
+    {
+      "competition_id": "ind.2",
+      "competition_name": "I-League",
+      "source_id": "india_aiff_official",
+      "source_name": "All India Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: I-League"
+      ],
+      "url": "https://www.the-aiff.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "ind.1",
+      "competition_name": "Indian Super League",
+      "source_id": "india_aiff_official",
+      "source_name": "All India Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Indian Super League"
+      ],
+      "url": "https://www.the-aiff.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "aus.1",
+      "competition_name": "A-League Men",
+      "source_id": "australia_football_official",
+      "source_name": "Football Australia",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: A-League Men"
+      ],
+      "url": "https://footballaustralia.com.au/",
+      "final_url": null
+    },
+    {
+      "competition_id": "vnm.1",
+      "competition_name": "V.League 1",
+      "source_id": "vietnam_vff_official",
+      "source_name": "Vietnam Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: V.League 1"
+      ],
+      "url": "https://vff.org.vn/",
+      "final_url": null
+    },
+    {
+      "competition_id": "vnm.2",
+      "competition_name": "V.League 2",
+      "source_id": "vietnam_vff_official",
+      "source_name": "Vietnam Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: V.League 2"
+      ],
+      "url": "https://vff.org.vn/",
+      "final_url": null
+    },
+    {
+      "competition_id": "qat.1",
+      "competition_name": "Qatar Stars League",
+      "source_id": "qatar_qfa_official",
+      "source_name": "Qatar Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Qatar Stars League"
+      ],
+      "url": "https://www.qfa.qa/",
+      "final_url": null
+    },
+    {
+      "competition_id": "cro.2",
+      "competition_name": "Prva NL",
+      "source_id": "croatia_hns_official",
+      "source_name": "Croatian Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Prva NL"
+      ],
+      "url": "https://hns.family/",
+      "final_url": null
+    },
+    {
+      "competition_id": "de.1",
+      "competition_name": "Bundesliga",
+      "source_id": "germany_dfb_official",
+      "source_name": "German Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Bundesliga"
+      ],
+      "url": "https://www.dfb.de/",
+      "final_url": null
+    },
+    {
+      "competition_id": "de.2",
+      "competition_name": "2. Bundesliga",
+      "source_id": "germany_dfb_official",
+      "source_name": "German Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: 2. Bundesliga"
+      ],
+      "url": "https://www.dfb.de/",
+      "final_url": null
+    },
+    {
+      "competition_id": "de.3",
+      "competition_name": "3. Liga",
+      "source_id": "germany_dfb_official",
+      "source_name": "German Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: 3. Liga"
+      ],
+      "url": "https://www.dfb.de/",
+      "final_url": null
+    },
+    {
+      "competition_id": "de.4",
+      "competition_name": "Regionalliga",
+      "source_id": "germany_dfb_official",
+      "source_name": "German Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Regionalliga"
+      ],
+      "url": "https://www.dfb.de/",
+      "final_url": null
+    },
+    {
+      "competition_id": "eng.5",
+      "competition_name": "National League",
+      "source_id": "england_fa_official",
+      "source_name": "The Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: National League"
+      ],
+      "url": "https://www.thefa.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "fro.2",
+      "competition_name": "1. Deild",
+      "source_id": "faroe_islands_ffi_official",
+      "source_name": "Football Association of the Faroe Islands",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: 1. Deild"
+      ],
+      "url": "https://www.fsf.fo/",
+      "final_url": null
+    },
+    {
+      "competition_id": "hun.1",
+      "competition_name": "NB I",
+      "source_id": "hungary_mlsz_official",
+      "source_name": "Hungarian Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: NB I"
+      ],
+      "url": "https://www.mlsz.hu/",
+      "final_url": null
+    },
+    {
+      "competition_id": "nir.1",
+      "competition_name": "NIFL Premiership",
+      "source_id": "northern_ireland_ifa_official",
+      "source_name": "Irish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: NIFL Premiership"
+      ],
+      "url": "https://www.irishfa.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "nir.2",
+      "competition_name": "NIFL Championship",
+      "source_id": "northern_ireland_ifa_official",
+      "source_name": "Irish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: NIFL Championship"
+      ],
+      "url": "https://www.irishfa.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "nl.1",
+      "competition_name": "Eredivisie",
+      "source_id": "netherlands_knvb_official",
+      "source_name": "Royal Netherlands Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Eredivisie"
+      ],
+      "url": "https://www.knvb.nl/",
+      "final_url": null
+    },
+    {
+      "competition_id": "rou.1",
+      "competition_name": "Liga I",
+      "source_id": "romania_frF_official",
+      "source_name": "Romanian Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Liga I"
+      ],
+      "url": "https://www.frf.ro/",
+      "final_url": null
+    },
+    {
+      "competition_id": "rou.2",
+      "competition_name": "Liga II",
+      "source_id": "romania_frF_official",
+      "source_name": "Romanian Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Liga II"
+      ],
+      "url": "https://www.frf.ro/",
+      "final_url": null
+    },
+    {
+      "competition_id": "srb.2",
+      "competition_name": "Prva Liga",
+      "source_id": "serbia_fss_official",
+      "source_name": "Football Association of Serbia",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": false,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Prva Liga"
+      ],
+      "url": "https://fss.rs/",
+      "final_url": null
+    },
+    {
+      "competition_id": "pol.1",
+      "competition_name": "Ekstraklasa",
+      "source_id": "poland_pzpn_official",
+      "source_name": "Polish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Ekstraklasa"
+      ],
+      "url": "https://pzpn.pl/",
+      "final_url": null
+    },
+    {
+      "competition_id": "svk.1",
+      "competition_name": "Niké Liga",
+      "source_id": "slovakia_sfz_official",
+      "source_name": "Slovak Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Niké Liga"
+      ],
+      "url": "https://futbalsfz.sk/",
+      "final_url": null
+    },
+    {
+      "competition_id": "svk.2",
+      "competition_name": "2. Liga",
+      "source_id": "slovakia_sfz_official",
+      "source_name": "Slovak Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: 2. Liga"
+      ],
+      "url": "https://futbalsfz.sk/",
+      "final_url": null
+    },
+    {
+      "competition_id": "swe.2",
+      "competition_name": "Superettan",
+      "source_id": "sweden_svff_official",
+      "source_name": "Swedish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Superettan"
+      ],
+      "url": "https://www.svenskfotboll.se/",
+      "final_url": null
+    },
+    {
+      "competition_id": "swe.3",
+      "competition_name": "Ettan",
+      "source_id": "sweden_svff_official",
+      "source_name": "Swedish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Ettan"
+      ],
+      "url": "https://www.svenskfotboll.se/",
+      "final_url": null
+    },
+    {
+      "competition_id": "svn.2",
+      "competition_name": "2. SNL",
+      "source_id": "slovenia_nzs_official",
+      "source_name": "Football Association of Slovenia",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: 2. SNL"
+      ],
+      "url": "https://www.nzs.si/",
+      "final_url": null
+    },
+    {
+      "competition_id": "pol.2",
+      "competition_name": "I Liga",
+      "source_id": "poland_pzpn_official",
+      "source_name": "Polish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: I Liga"
+      ],
+      "url": "https://pzpn.pl/",
+      "final_url": null
+    },
+    {
+      "competition_id": "tur.2",
+      "competition_name": "1. Lig",
+      "source_id": "turkiye_tff_official",
+      "source_name": "Turkish Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: 1. Lig"
+      ],
+      "url": "https://www.tff.org/",
+      "final_url": null
+    },
+    {
+      "competition_id": "arg.1",
+      "competition_name": "Liga Profesional",
+      "source_id": "argentina_afa_official",
+      "source_name": "Argentine Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Liga Profesional"
+      ],
+      "url": "https://www.afa.com.ar/es/",
+      "final_url": null
+    },
+    {
+      "competition_id": "srb.1",
+      "competition_name": "Serbia SuperLiga",
+      "source_id": "serbia_fss_official",
+      "source_name": "Football Association of Serbia",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": false,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Serbia SuperLiga"
+      ],
+      "url": "https://fss.rs/",
+      "final_url": null
+    },
+    {
+      "competition_id": "chi.1",
+      "competition_name": "Primera",
+      "source_id": "chile_anfp_official",
+      "source_name": "National Professional Football Association of Chile",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Primera"
+      ],
+      "url": "https://www.anfp.cl/",
+      "final_url": null
+    },
+    {
+      "competition_id": "col.2",
+      "competition_name": "Primera B",
+      "source_id": "colombia_fcf_official",
+      "source_name": "Colombian Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Primera B"
+      ],
+      "url": "https://fcf.com.co/",
+      "final_url": null
+    },
+    {
+      "competition_id": "crc.1",
+      "competition_name": "Liga FPD",
+      "source_id": "costa_rica_fcrf_official",
+      "source_name": "Federación Costarricense de Fútbol",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Liga FPD"
+      ],
+      "url": "https://www.fcrf.cr/",
+      "final_url": null
+    },
+    {
+      "competition_id": "swe.1",
+      "competition_name": "Allsvenskan",
+      "source_id": "sweden_svff_official",
+      "source_name": "Swedish Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Allsvenskan"
+      ],
+      "url": "https://www.svenskfotboll.se/",
+      "final_url": null
+    },
+    {
+      "competition_id": "pan.1",
+      "competition_name": "Liga Panameña",
+      "source_id": "panama_fepafut_official",
+      "source_name": "Federación Panameña de Fútbol",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Liga Panameña"
+      ],
+      "url": "https://www.fepafut.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "svn.1",
+      "competition_name": "PrvaLiga",
+      "source_id": "slovenia_nzs_official",
+      "source_name": "Football Association of Slovenia",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: PrvaLiga"
+      ],
+      "url": "https://www.nzs.si/",
+      "final_url": null
+    },
+    {
+      "competition_id": "tur.1",
+      "competition_name": "Süper Lig",
+      "source_id": "turkiye_tff_official",
+      "source_name": "Turkish Football Federation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": true,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Süper Lig"
+      ],
+      "url": "https://www.tff.org/",
+      "final_url": null
+    },
+    {
+      "competition_id": "mex.2",
+      "competition_name": "Liga de Expansión",
+      "source_id": "mexico_fmf_official",
+      "source_name": "Federación Mexicana de Fútbol",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": false,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Liga de Expansión"
+      ],
+      "url": "https://fmf.mx/",
+      "final_url": null
+    },
+    {
+      "competition_id": "par.1",
+      "competition_name": "Primera",
+      "source_id": "paraguay_apf_official",
+      "source_name": "Paraguayan Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": true,
+        "standings": true,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Primera"
+      ],
+      "url": "https://www.apf.org.py/",
+      "final_url": null
+    },
+    {
+      "competition_id": "uru.2",
+      "competition_name": "Segunda",
+      "source_id": "uruguay_auf_official",
+      "source_name": "Uruguayan Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Segunda"
+      ],
+      "url": "https://www.auf.org.uy/",
+      "final_url": null
+    },
+    {
+      "competition_id": "uru.1",
+      "competition_name": "Liga AUF",
+      "source_id": "uruguay_auf_official",
+      "source_name": "Uruguayan Football Association",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": false
+      },
+      "evidence": [
+        "Competition name found: Liga AUF"
+      ],
+      "url": "https://www.auf.org.uy/",
+      "final_url": null
+    },
+    {
+      "competition_id": "mex.1",
+      "competition_name": "Liga MX",
+      "source_id": "mexico_fmf_official",
+      "source_name": "Federación Mexicana de Fútbol",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": false,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: Liga MX"
+      ],
+      "url": "https://fmf.mx/",
+      "final_url": null
+    },
+    {
+      "competition_id": "caf.1",
+      "competition_name": "CAF Champions League",
+      "source_id": "caf_official",
+      "source_name": "Confederation of African Football",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: CAF Champions League"
+      ],
+      "url": "https://www.cafonline.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "caf.2",
+      "competition_name": "CAF Confederation Cup",
+      "source_id": "caf_official",
+      "source_name": "Confederation of African Football",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: CAF Confederation Cup"
+      ],
+      "url": "https://www.cafonline.com/",
+      "final_url": null
+    },
+    {
+      "competition_id": "fifa.1",
+      "competition_name": "FIFA World Cup",
+      "source_id": "openfootball_data",
+      "source_name": "Open Football Data",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": true,
+        "results": false,
+        "standings": false,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: FIFA World Cup"
+      ],
+      "url": "https://openfootball.github.io/",
+      "final_url": null
+    },
+    {
+      "competition_id": "ofc.2",
+      "competition_name": "OFC Professional League",
+      "source_id": "ofc_official",
+      "source_name": "Oceania Football Confederation",
+      "coverage_status": "VERIFIED",
+      "capabilities": {
+        "fixtures": false,
+        "results": false,
+        "standings": true,
+        "match_data": true
+      },
+      "evidence": [
+        "Competition name found: OFC Professional League"
+      ],
+      "url": "https://www.oceaniafootball.com/",
+      "final_url": null
+    }
+  ],
+  "partial_pairs": [
+    {
+      "competition_id": "geo.2",
+      "competition_name": "Erovnuli Liga 2",
+      "source_id": "georgia_gff_official",
+      "source_name": "Georgian Football Federation",
+      "url": "https://gff.ge/ge",
+      "coverage_status": "PARTIAL",
+      "evidence": [
+        "Competition name found: Erovnuli Liga 2"
+      ]
+    },
+    {
+      "competition_id": "geo.1",
+      "competition_name": "Erovnuli Liga",
+      "source_id": "georgia_gff_official",
+      "source_name": "Georgian Football Federation",
+      "url": "https://gff.ge/ge",
+      "coverage_status": "PARTIAL",
+      "evidence": [
+        "Competition name found: Erovnuli Liga"
+      ]
+    }
+  ],
+  "note": "Capabilities and URLs originate from competition-specific verification. No source priority or hierarchy is implied."
+}

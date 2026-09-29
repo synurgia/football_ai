@@ -1,0 +1,1342 @@
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urljoin
+
+import httpx
+
+CAPABILITY_FILE = Path("data/v13_source_capability_map.json")
+OUT_FILE = Path("data/v13_match_discovery_candidates.json")
+TIMEOUT = 20.0
+HEADERS = {"User-Agent": "FootballAI-V1.3/1.0"}
+
+MAX_DISCOVERED_LINKS = 12
+MAX_STRUCTURED_ENDPOINTS = 12
+MAX_SCRIPT_LINKS = 8
+
+DATE_RE = re.compile(
+    r"\b(?:20\d{2}[-/]\d{1,2}[-/]\d{1,2}"
+    r"|\d{1,2}[-/]\d{1,2}[-/](?:20)?\d{2})\b"
+)
+
+FOOTBALL_SIGNAL_RE = re.compile(
+    r"\b(?:fixture|fixtures|match|matches|kick[\s-]?off|"
+    r"schedule|result|results|standings|league|cup)\b",
+    re.I,
+)
+
+FIXTURE_ENDPOINT_SIGNAL_RE = re.compile(
+    r"(?:/api(?:/|\b)|api[._/-]|fixtures?|schedules?|matches?|"
+    r"kick[\s_-]*off|results?|calendar|games?|scoreboard)",
+    re.I,
+)
+
+ABSOLUTE_URL_RE = re.compile(
+    r"""https?://[^\s"'<>`]+""",
+    re.I,
+)
+
+
+def clean_text(text: str) -> str:
+    """Safely normalize bounded source text."""
+    if not text:
+        return ""
+
+    # Bound BEFORE any transformation. Large JS bundles can be many MB.
+    text = str(text)[:1200000]
+
+    # Avoid regex processing across huge documents.
+    return " ".join(text.split())
+
+
+def extract_html_match_candidates(text: str) -> list[dict]:
+    """Provider-neutral extraction of fixture candidates from HTML."""
+    if not text:
+        return []
+
+    from html.parser import HTMLParser
+    import re
+
+    class FixtureParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.depth = 0
+            self.active = []
+            self.blocks = []
+
+        def handle_starttag(self, tag, attrs):
+            attrs_dict = dict(attrs)
+            marker = (
+                (attrs_dict.get("class") or "") + " " +
+                (attrs_dict.get("id") or "")
+            ).lower()
+
+            if re.search(
+                r"(fixture|fixtures|match|matches|game|games|schedule|"
+                r"matchday|event)",
+                marker,
+                re.I,
+            ):
+                self.active.append({
+                    "depth": self.depth,
+                    "text": [],
+                    "marker": marker,
+                })
+
+            for block in self.active:
+                block["text"].append(" ")
+
+            self.depth += 1
+
+        def handle_endtag(self, tag):
+            self.depth = max(0, self.depth - 1)
+
+            finished = []
+            for block in self.active:
+                if self.depth <= block["depth"]:
+                    value = " ".join(block["text"])
+                    value = re.sub(r"\s+", " ", value).strip()
+                    if value:
+                        self.blocks.append(value[:4000])
+                    finished.append(block)
+
+            for block in finished:
+                if block in self.active:
+                    self.active.remove(block)
+
+        def handle_data(self, data):
+            if not data.strip():
+                return
+            for block in self.active:
+                block["text"].append(data.strip())
+
+    parser = FixtureParser()
+
+    try:
+        parser.feed(str(text)[:1500000])
+        parser.close()
+    except Exception:
+        return []
+
+    results = []
+    seen = set()
+
+    date_re = re.compile(
+        r"\b(?:20\d{2}[-/]\d{1,2}[-/]\d{1,2}|"
+        r"\d{1,2}[-/]\d{1,2}[-/]20\d{2})\b"
+    )
+
+    pair_patterns = [
+        re.compile(r"(.{2,80}?)\s+(?:vs\.?|v\.?|versus)\s+(.{2,80})", re.I),
+        re.compile(r"(.{2,80}?)\s+-\s+(.{2,80})"),
+    ]
+
+    for block in parser.blocks:
+        block = re.sub(r"\s+", " ", block).strip()
+
+        if not date_re.search(block):
+            continue
+
+        for pattern in pair_patterns:
+            match = pattern.search(block)
+            if not match:
+                continue
+
+            home = re.sub(r"\s+", " ", match.group(1)).strip(" -|:")
+            away = re.sub(r"\s+", " ", match.group(2)).strip(" -|:")
+
+            if len(home) < 2 or len(away) < 2:
+                continue
+
+            # Prevent obvious navigation/news text from becoming fixtures.
+            if len(home) > 100 or len(away) > 100:
+                continue
+
+            key = (
+                home.lower(),
+                away.lower(),
+                date_re.search(block).group(0),
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+
+            results.append({
+                "snippet": block[:1200],
+                "date_matches": date_re.findall(block),
+                "structured": True,
+                "html": True,
+                "home_team": home,
+                "away_team": away,
+                "scheduled": block[:500],
+            })
+
+            break
+
+        if len(results) >= 100:
+            break
+
+    return results
+
+
+def extract_structured_match_candidates(text: str) -> list[dict]:
+    """Provider-neutral extraction of match objects from structured JSON."""
+    if not text:
+        return []
+
+    import json
+    import re
+
+    raw = str(text)[:1500000]
+    objects = []
+
+    def walk(value):
+        if isinstance(value, dict):
+            objects.append(value)
+            for v in value.values():
+                walk(v)
+        elif isinstance(value, list):
+            for v in value[:5000]:
+                walk(v)
+
+    try:
+        walk(json.loads(raw))
+    except Exception:
+        return []
+
+    home_keys = (
+        "home_team", "homeTeam", "home_name", "homeName",
+        "homeTeamName", "home_contestant_name",
+        "homeContestantName",
+    )
+    away_keys = (
+        "away_team", "awayTeam", "away_name", "awayName",
+        "awayTeamName", "away_contestant_name",
+        "awayContestantName",
+    )
+    date_keys = (
+        "date", "match_date", "matchDate", "startDate",
+        "start_date", "kickoff", "kickoff_at", "kickoffAt",
+        "scheduled", "scheduled_at", "scheduledAt",
+        "startTime", "start_time",
+    )
+
+    def get_value(obj, keys):
+        for key in keys:
+            value = obj.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    results = []
+    seen = set()
+
+    for obj in objects:
+        home = get_value(obj, home_keys)
+        away = get_value(obj, away_keys)
+        when = get_value(obj, date_keys)
+
+        if isinstance(obj.get("home"), dict):
+            home = home or get_value(
+                obj["home"], ("name", "teamName", "displayName")
+            )
+
+        if isinstance(obj.get("away"), dict):
+            away = away or get_value(
+                obj["away"], ("name", "teamName", "displayName")
+            )
+
+        if not home or not away or not when:
+            continue
+
+        key = (home.lower(), away.lower(), when)
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        results.append({
+            "snippet": f"{home} vs {away} | {when}",
+            "date_matches": re.findall(
+                r"\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b",
+                when,
+            ),
+            "structured": True,
+            "home_team": home,
+            "away_team": away,
+            "scheduled": when,
+        })
+
+        if len(results) >= 100:
+            break
+
+    return results
+
+
+def extract_fixture_bridge_candidates(text: str) -> list[dict]:
+    """
+    V1.3 Step-3 -> Step-4 evidence bridge.
+
+    Converts provider-specific fixture-shaped structures into the
+    canonical candidate shape consumed downstream. This is deliberately
+    source-neutral and evidence-preserving: records are promoted only
+    when two distinct teams and a scheduled date/time can be established.
+    """
+    if not text:
+        return []
+
+    raw = str(text)[:1500000]
+    results = []
+    seen = set()
+
+    HOME_KEYS = (
+        "home_team", "homeTeam", "home_name", "homeName",
+        "homeTeamName", "home_contestant_name", "homeContestantName",
+        "homeContestant", "home_team_name", "homeParticipant",
+        "home_participant",
+    )
+
+    AWAY_KEYS = (
+        "away_team", "awayTeam", "away_name", "awayName",
+        "awayTeamName", "away_contestant_name", "awayContestantName",
+        "awayContestant", "away_team_name", "awayParticipant",
+        "away_participant",
+    )
+
+    WHEN_KEYS = (
+        "date", "match_date", "matchDate", "startDate", "start_date",
+        "kickoff", "kickoff_at", "kickoffAt", "scheduled",
+        "scheduled_at", "scheduledAt", "startTime", "start_time",
+        "kickoffTime", "kickoff_time", "fixtureDate", "fixture_date",
+        "matchDateTime", "match_datetime", "eventDate", "event_date",
+    )
+
+    def scalar_name(value):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+        if isinstance(value, dict):
+            for key in (
+                "name", "teamName", "displayName", "shortName",
+                "fullName", "label", "title",
+            ):
+                value2 = value.get(key)
+                if isinstance(value2, str) and value2.strip():
+                    return value2.strip()
+
+            for key in ("team", "contestant", "participant", "club"):
+                nested = value.get(key)
+                name = scalar_name(nested)
+                if name:
+                    return name
+
+        return None
+
+    def get_first(obj, keys):
+        for key in keys:
+            if key in obj:
+                name = scalar_name(obj.get(key))
+                if name:
+                    return name
+        return None
+
+    def get_when(obj):
+        for key in WHEN_KEYS:
+            value = obj.get(key)
+            if isinstance(value, (str, int, float)):
+                value = str(value).strip()
+                if value:
+                    return value
+        return None
+
+    def add(home, away, when, source_obj=None):
+        if not home or not away or not when:
+            return
+
+        home = str(home).strip()
+        away = str(away).strip()
+        when = str(when).strip()
+
+        if not home or not away or home.lower() == away.lower():
+            return
+
+        key = (
+            home.lower(),
+            away.lower(),
+            when.lower(),
+        )
+
+        if key in seen:
+            return
+
+        seen.add(key)
+
+        results.append({
+            "snippet": f"{home} vs {away} | {when}",
+            "date_matches": re.findall(
+                r"\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b",
+                when,
+            ),
+            "structured": True,
+            "bridge": "STEP3_ENDPOINT_FIXTURE_BRIDGE",
+            "home_team": home,
+            "away_team": away,
+            "scheduled": when,
+        })
+
+    def walk(value):
+        if len(results) >= 100:
+            return
+
+        if isinstance(value, dict):
+            # Schema.org SportsEvent bridge.
+            # Sources such as Global Sports Archive expose fixtures as:
+            # @type=SportsEvent, name="Team A vs Team B",
+            # startDate=..., competitor=[...].
+            event_type = value.get("@type")
+            if (
+                event_type == "SportsEvent"
+                or (
+                    isinstance(event_type, list)
+                    and "SportsEvent" in event_type
+                )
+            ):
+                when = get_when(value)
+                competitors = value.get("competitor")
+
+                if (
+                    isinstance(competitors, list)
+                    and len(competitors) >= 2
+                    and when
+                ):
+                    named = []
+                    for item in competitors[:10]:
+                        name = scalar_name(item)
+                        if name:
+                            named.append(name)
+
+                    if len(named) >= 2:
+                        add(
+                            named[0],
+                            named[1],
+                            when,
+                            value,
+                        )
+
+            home = get_first(value, HOME_KEYS)
+            away = get_first(value, AWAY_KEYS)
+            when = get_when(value)
+
+            if home and away and when:
+                add(home, away, when, value)
+
+            # Common participant/competitor structures.
+            for key in (
+                "participants", "competitors", "teams",
+                "contestants", "sides", "competitor",
+            ):
+                items = value.get(key)
+
+                if isinstance(items, list) and len(items) >= 2:
+                    named = []
+                    for item in items[:10]:
+                        name = scalar_name(item)
+                        if name:
+                            named.append(name)
+
+                    if len(named) >= 2 and when:
+                        home_name = named[0]
+                        away_name = named[1]
+                        add(home_name, away_name, when, value)
+
+                elif isinstance(items, dict):
+                    walk(items)
+
+            for nested in value.values():
+                if isinstance(nested, (dict, list)):
+                    walk(nested)
+
+        elif isinstance(value, list):
+            for item in value[:5000]:
+                if isinstance(item, (dict, list)):
+                    walk(item)
+
+    # First try JSON because APIs commonly expose fixture objects this way.
+    try:
+        payload = json.loads(raw)
+        walk(payload)
+    except Exception:
+        pass
+
+    # Also extract Schema.org JSON-LD embedded inside HTML pages.
+    # This remains provider-neutral: any source exposing SportsEvent
+    # objects through application/ld+json can use the same bridge.
+    if len(results) < 100:
+        try:
+            jsonld_blocks = re.findall(
+                r'<script[^>]*type\s*=\s*["\']application/ld\+json["\'][^>]*>(.*?)</script>', 
+                raw,
+                re.I | re.S,
+            )
+
+            for block in jsonld_blocks:
+                try:
+                    payload = json.loads(block.strip())
+                    walk(payload)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    # Then use the existing provider-neutral extractors as additional
+    # evidence paths. They do not replace the bridge above.
+    if len(results) < 100:
+        try:
+            existing = extract_structured_match_candidates(raw)
+            for item in existing:
+                add(
+                    item.get("home_team"),
+                    item.get("away_team"),
+                    item.get("scheduled"),
+                    item,
+                )
+        except Exception:
+            pass
+
+    if len(results) < 100:
+        try:
+            existing = extract_html_match_candidates(raw)
+            for item in existing:
+                add(
+                    item.get("home_team"),
+                    item.get("away_team"),
+                    item.get("scheduled"),
+                    item,
+                )
+        except Exception:
+            pass
+
+    return results
+
+
+def extract_endpoint_match_candidates(text: str) -> list[dict]:
+    """Normalize fixture candidates from JSON, HTML, or embedded text."""
+    if not text:
+        return []
+
+    raw = str(text)[:1500000]
+    results = []
+    seen = set()
+
+    def add(items):
+        for item in items or []:
+            home = item.get("home_team")
+            away = item.get("away_team")
+            when = item.get("scheduled")
+
+            if not home or not away:
+                continue
+
+            key = (
+                str(home).strip().lower(),
+                str(away).strip().lower(),
+                str(when or "").strip().lower(),
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+
+            candidate = dict(item)
+            candidate.setdefault(
+                "snippet",
+                f"{home} vs {away} | {when or ''}"
+            )
+            candidate.setdefault("structured", True)
+            results.append(candidate)
+
+            if len(results) >= 100:
+                return
+
+    # JSON
+    try:
+        add(extract_structured_match_candidates(raw))
+    except Exception:
+        pass
+
+    # HTML
+    if len(results) < 100:
+        try:
+            add(extract_html_match_candidates(raw))
+        except Exception:
+            pass
+
+    # Generic bounded text
+    if len(results) < 100:
+        try:
+            add(extract_match_candidates(raw))
+        except Exception:
+            pass
+
+    return results
+
+
+def extract_match_candidates(text: str) -> list[dict]:
+    """
+    Extract bounded fixture/match candidates without catastrophic regex
+    backtracking on large HTML or JavaScript documents.
+    """
+    if not text:
+        return []
+
+    cleaned = clean_text(text)
+    if not cleaned:
+        return []
+
+    candidates = []
+    seen = set()
+
+    # Process bounded windows around football-related signal terms.
+    # This preserves the original discovery purpose while preventing
+    # expensive .{0,220} regex scans across multi-megabyte JS.
+    signal_re = re.compile(
+        r"\\b(?:fixture|fixtures|match|matches|kick[- ]?off|schedule|"
+        r"result|results|standings|league|cup)\\b",
+        re.I,
+    )
+
+    date_re = re.compile(r"\\b(?:20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}|"
+                         r"\\d{1,2}[-/]\\d{1,2}[-/]20\\d{2})\\b")
+
+    # Limit the amount of source text examined.
+    max_chars = 1200000
+    cleaned = cleaned[:max_chars]
+
+    for signal in signal_re.finditer(cleaned):
+        left = max(0, signal.start() - 220)
+        right = min(len(cleaned), signal.end() + 420)
+        snippet = cleaned[left:right].strip()
+
+        if not date_re.search(snippet):
+            continue
+
+        key = snippet[:700].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+
+        candidates.append({
+            "snippet": snippet,
+            "date_matches": date_re.findall(snippet),
+        })
+
+        if len(candidates) >= 20:
+            break
+
+    return candidates
+
+def _normalise_endpoint(url: str) -> str:
+    """Safely normalize a bounded HTTP(S) endpoint URL."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    if not url:
+        return ""
+
+    # Never allow arbitrary HTML/JS blobs to reach URL parsing.
+    url = str(url).strip().strip(" \\t\\r\\n")
+    if len(url) > 2048:
+        return ""
+
+    if any(ord(ch) < 32 for ch in url):
+        return ""
+
+    try:
+        parsed = urlsplit(url)
+    except Exception:
+        return ""
+
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+
+    return urlunsplit((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.query,
+        "",
+    ))
+
+def discover_structured_endpoints(source_url, source_text):
+    """
+    Generic V1.3 structured/API endpoint discovery.
+
+    Rules:
+    - no provider-specific logic
+    - no source hierarchy
+    - endpoint must be exposed by retrieved source material
+    - same-host endpoints are allowed
+    - explicitly exposed api/json associated hosts are allowed
+    - bounded discovery
+    """
+    try:
+        root_host = httpx.URL(source_url).host
+    except Exception:
+        root_host = None
+
+    candidates = []
+
+    def add(url, reason):
+        if not url:
+            return
+
+        url = _normalise_endpoint(url.strip().rstrip(".,;"))
+
+        try:
+            parsed = httpx.URL(url)
+        except Exception:
+            return
+
+        if parsed.scheme not in {"http", "https"}:
+            return
+
+        if not parsed.host:
+            return
+
+        # Reject known non-fixture resources before applying the broad
+        # fixture/API signal. These consume the bounded endpoint budget
+        # but cannot provide match evidence.
+        if re.search(
+            r"(?:^api\\.w\\.org$|"
+            r"^maps\\.googleapis\\.com$|"
+            r"^widgets\\.api-sports\\.io$)",
+            parsed.host,
+            re.I,
+        ):
+            return
+
+        if re.search(
+            r"(?:\\.js(?:$|\\?)|\\.webp(?:$|\\?)|"
+            r"\\.css(?:$|\\?)|\\.woff2?(?:$|\\?)|"
+            r"\\.ttf(?:$|\\?)|\\.png(?:$|\\?)|"
+            r"\\.jpg(?:$|\\?)|\\.jpeg(?:$|\\?)|"
+            r"\\.gif(?:$|\\?)|\\.svg(?:$|\\?))",
+            parsed.path,
+            re.I,
+        ):
+            return
+
+        if re.search(
+            r"/wp-json/(?:jet-menu-api|jet-tabs-api|jet-blocks-api)/",
+            parsed.path,
+            re.I,
+        ):
+            return
+
+        if not FIXTURE_ENDPOINT_SIGNAL_RE.search(url):
+            return
+
+        # Reject obvious analytics/social/static assets before they consume
+        # the bounded endpoint budget. V1.3 must preserve room for actual
+        # fixture, schedule, match, result and football-data endpoints.
+        if re.search(
+            r"(?:sharethis|googletagmanager|google-analytics|doubleclick|"
+            r"facebook\.com|twitter\.com|linkedin\.com|addthis|"
+            r"hotjar|clarity\.ms|analytics|tracking|pixel)",
+            parsed.host + parsed.path,
+            re.I,
+        ):
+            return
+
+        if re.search(
+            r"(?:\.css(?:$|\?)|\.woff2?(?:$|\?)|\.ttf(?:$|\?)|"
+            r"\.png(?:$|\?)|\.jpg(?:$|\?)|\.jpeg(?:$|\?)|"
+            r"\.gif(?:$|\?)|\.svg(?:$|\?))",
+            parsed.path,
+            re.I,
+        ):
+            return
+
+        if root_host and parsed.host != root_host:
+            if not re.search(r"(?:api|json)", parsed.host, re.I):
+                return
+
+        if any(item["url"] == url for item in candidates):
+            return
+
+        candidates.append(
+            {
+                "url": url,
+                "reason": reason,
+            }
+        )
+
+    # HTML href/src/action references.
+    attr_pattern = re.compile(
+        r"""(?:href|src|action)=["']([^"']+)["']""",
+        re.I,
+    )
+
+    for raw in attr_pattern.findall(source_text):
+        add(
+            urljoin(source_url, raw),
+            "HTML_REFERENCE",
+        )
+
+        if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+            break
+
+    # Absolute API/fixture URLs embedded in JavaScript or metadata.
+    if len(candidates) < MAX_STRUCTURED_ENDPOINTS:
+        for raw in ABSOLUTE_URL_RE.findall(source_text):
+            add(
+                raw,
+                "EMBEDDED_URL",
+            )
+
+            if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+                break
+
+    # Relative API/fixture paths embedded in JavaScript strings.
+    if len(candidates) < MAX_STRUCTURED_ENDPOINTS:
+        relative_pattern = re.compile(
+            r"""["']((?:/|\./)(?:[A-Za-z0-9._~-]+/)*
+            (?:api|frontweb/api|fixtures?|schedules?|matches?|
+            results?|calendar|games?|competition|tournament)[^"'<> ]*)["']""",
+            re.I | re.X,
+        )
+
+        for raw in relative_pattern.findall(source_text):
+            add(
+                urljoin(source_url, raw),
+                "EMBEDDED_RELATIVE_ENDPOINT",
+            )
+
+            if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+                break
+
+    # Generic embedded-provider configuration:
+    # combine an explicitly exposed HTTP(S) provider host with an
+    # explicitly exposed relative fixture/schedule/API path.
+    #
+    # This is provider-neutral. It does not name or prioritize any
+    # particular vendor. The source itself must expose both values.
+    if len(candidates) < MAX_STRUCTURED_ENDPOINTS:
+        provider_hosts = []
+
+        for raw in ABSOLUTE_URL_RE.findall(source_text):
+            if re.search(
+                r"(?:api|hosted|data|platform|service)",
+                raw,
+                re.I,
+            ):
+                try:
+                    parsed = httpx.URL(raw)
+                    base = f"{parsed.scheme}://{parsed.host}"
+                    if parsed.port:
+                        base += f":{parsed.port}"
+                    if base not in provider_hosts:
+                        provider_hosts.append(base)
+                except Exception:
+                    continue
+
+        provider_path_pattern = re.compile(
+            r"""["']((?:/|\./)
+            (?:(?:[A-Za-z0-9._~-]+)/)*
+            (?:competition|tournament|fixtures?|schedules?|matches?|
+            results?|calendar|games?|api|frontweb/api)
+            (?:/[A-Za-z0-9._~:/?&=%+-]+)*)["']""",
+            re.I | re.X,
+        )
+
+        relative_paths = provider_path_pattern.findall(source_text)
+
+        for base in provider_hosts:
+            for raw_path in relative_paths:
+                endpoint = urljoin(base + "/", raw_path.lstrip("/"))
+                add(
+                    endpoint,
+                    "EMBEDDED_PROVIDER_ENDPOINT",
+                )
+
+                if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+                    break
+
+            if len(candidates) >= MAX_STRUCTURED_ENDPOINTS:
+                break
+
+    return candidates
+
+
+def discover_fixture_links(source_url, source_text):
+    """Discover bounded same-domain fixture/schedule pages."""
+    try:
+        root_host = httpx.URL(source_url).host
+    except Exception:
+        return []
+
+    link_pattern = re.compile(
+        r"""href=["']([^"']+)["']""",
+        re.I,
+    )
+
+    link_signals = re.compile(
+        r"(fixture|fixtures|schedule|schedules|match|matches|"
+        r"kick[-_ ]?off|result|results|calendar|games?)",
+        re.I,
+    )
+
+    links = []
+
+    for href in link_pattern.findall(source_text):
+        absolute = urljoin(source_url, href)
+
+        try:
+            parsed = httpx.URL(absolute)
+        except Exception:
+            continue
+
+        if parsed.host != root_host:
+            continue
+
+        if not link_signals.search(absolute):
+            continue
+
+        if absolute not in links:
+            links.append(absolute)
+
+        if len(links) >= MAX_DISCOVERED_LINKS:
+            break
+
+    return links
+
+
+def main():
+    data = json.loads(CAPABILITY_FILE.read_text())
+
+    sources = [
+        x
+        for x in data["capabilities"]
+        if x["coverage_status"] == "VERIFIED"
+        and x["capabilities"].get("fixtures") is True
+    ]
+
+    results = []
+    failures = []
+
+    print("=== V1.3 MATCH DISCOVERY ===")
+    print(
+        "FIXTURE-CAPABLE VERIFIED PAIRS:",
+        len(sources),
+    )
+
+    with httpx.Client(
+        timeout=httpx.Timeout(
+            connect=5.0,
+            read=8.0,
+            write=5.0,
+            pool=5.0,
+        ),
+        follow_redirects=True,
+        headers=HEADERS,
+    ) as client:
+
+        for item in sources:
+            try:
+                root_url = item.get("url")
+                response = client.get(root_url)
+
+                visited = set()
+                pages = []
+                structured_endpoints = []
+
+                def add_page(
+                    response_obj,
+                    discovery_type="SOURCE_URL",
+                ):
+                    final = str(response_obj.url)
+
+                    if final in visited:
+                        return
+
+                    visited.add(final)
+
+                    pages.append(
+                        {
+                            "url": final,
+                            "http_status": response_obj.status_code,
+                            "content_type": response_obj.headers.get(
+                                "content-type"
+                            ),
+                            "text": response_obj.text,
+                            "discovery_type": discovery_type,
+                        }
+                    )
+
+                # Original mapped source.
+                add_page(response)
+
+                # Existing fixture/schedule HTML discovery.
+                discovered_links = discover_fixture_links(
+                    str(response.url),
+                    response.text,
+                )
+
+                for fixture_url in discovered_links:
+                    if fixture_url in visited:
+                        continue
+
+                    try:
+                        linked_response = client.get(
+                            fixture_url
+                        )
+                        add_page(
+                            linked_response,
+                            "FIXTURE_LINK",
+                        )
+                    except Exception:
+                        continue
+
+                # Discover structured/API endpoints from source HTML.
+                structured_endpoints.extend(
+                    discover_structured_endpoints(
+                        str(response.url),
+                        response.text,
+                    )
+                )
+
+                # Inspect a bounded number of source-owned scripts.
+                script_pattern = re.compile(
+                    r"""<script[^>]+src=["']([^"']+)["']""",
+                    re.I,
+                )
+
+                script_urls = []
+
+                for raw in script_pattern.findall(
+                    response.text
+                ):
+                    absolute = urljoin(
+                        str(response.url),
+                        raw,
+                    )
+
+                    if absolute not in script_urls:
+                        script_urls.append(absolute)
+
+                    if len(script_urls) >= MAX_SCRIPT_LINKS:
+                        break
+
+                for script_url in script_urls:
+                    if (
+                        len(structured_endpoints)
+                        >= MAX_STRUCTURED_ENDPOINTS
+                    ):
+                        break
+
+                    try:
+#                         script_response = client.get(
+#                             script_url
+#                         )
+# 
+                        discovered = (
+                            discover_structured_endpoints(
+                                str(response.url),
+                                script_response.text,
+                            )
+                        )
+
+                        for endpoint in discovered:
+                            if not any(
+                                x["url"]
+                                == endpoint["url"]
+                                for x in structured_endpoints
+                            ):
+                                structured_endpoints.append(
+                                    endpoint
+                                )
+
+                            if (
+                                len(structured_endpoints)
+                                >= MAX_STRUCTURED_ENDPOINTS
+                            ):
+                                break
+
+                    except Exception:
+                        continue
+
+                # Retrieve discovered structured endpoints.
+                endpoint_results = []
+
+                for endpoint in structured_endpoints[
+                    :MAX_STRUCTURED_ENDPOINTS
+                ]:
+                    endpoint_url = endpoint["url"]
+
+                    if endpoint_url in visited:
+                        endpoint_results.append(
+                            {
+                                **endpoint,
+                                "status": "ALREADY_RETRIEVED",
+                            }
+                        )
+                        continue
+
+                    try:
+                        endpoint_response = client.get(
+                            endpoint_url
+                        )
+
+                        status = (
+                            "RETRIEVED"
+                            if endpoint_response.status_code < 400
+                            else "FAILED"
+                        )
+
+                        endpoint_results.append(
+                            {
+                                **endpoint,
+                                "status": status,
+                                "http_status": (
+                                    endpoint_response.status_code
+                                ),
+                                "content_type": (
+                                    endpoint_response.headers.get(
+                                        "content-type"
+                                    )
+                                ),
+                                "text": (
+                                    endpoint_response.text[:1500000]
+                                    if endpoint_response.status_code < 400
+                                    else ""
+                                ),
+                            }
+                        )
+
+                        if (
+                            endpoint_response.status_code < 400
+                            and endpoint_response.text.strip()
+                        ):
+                            structured_matches = extract_fixture_bridge_candidates(
+                                endpoint_response.text
+                            )
+
+                            if not structured_matches:
+                                structured_matches = (
+                                    extract_endpoint_match_candidates(
+                                        endpoint_response.text
+                                    )
+                                )
+                            if not structured_matches:
+                                structured_matches = (
+                                    extract_html_match_candidates(
+                                        endpoint_response.text
+                                    )
+                                )
+                            page_candidates.extend(structured_matches)
+
+                            add_page(
+                                endpoint_response,
+                                "STRUCTURED_ENDPOINT",
+                            )
+
+                    except Exception as exc:
+                        endpoint_results.append(
+                            {
+                                **endpoint,
+                                "status": "FAILED",
+                                "error": str(exc),
+                            }
+                        )
+
+                # Extract evidence from every successfully retrieved page.
+                all_candidates = []
+
+                for page in pages:
+                    page_candidates.extend(
+                        extract_match_candidates(
+                            page["text"]
+                        )
+                    )
+
+                    page_candidates.extend(
+                        extract_structured_match_candidates(page["text"])
+                    )
+
+                    for candidate in page_candidates:
+                        candidate["discovered_url"] = (
+                            page["url"]
+                        )
+                        candidate["http_status"] = (
+                            page["http_status"]
+                        )
+                        candidate["content_type"] = (
+                            page["content_type"]
+                        )
+                        candidate["discovery_type"] = (
+                            page["discovery_type"]
+                        )
+
+                        all_candidates.append(
+                            candidate
+                        )
+
+                unique_candidates = []
+                seen = set()
+
+                for candidate in all_candidates:
+                    key = (
+                        candidate.get(
+                            "evidence_snippet",
+                            "",
+                        ),
+                        candidate.get(
+                            "discovered_url",
+                            "",
+                        ),
+                    )
+
+                    if key in seen:
+                        continue
+
+                    seen.add(key)
+                    unique_candidates.append(
+                        candidate
+                    )
+
+                results.append(
+                    {
+                        "competition_id": item[
+                            "competition_id"
+                        ],
+                        "competition_name": item[
+                            "competition_name"
+                        ],
+                        "source_id": item["source_id"],
+                        "source_name": item["source_name"],
+                        "url": item.get("url"),
+                        "final_url": str(response.url),
+                        "discovered_urls": [
+                            page["url"]
+                            for page in pages
+                        ],
+                        "structured_endpoints": (
+                            endpoint_results
+                        ),
+                        "structured_endpoint_count": (
+                            len(endpoint_results)
+                        ),
+                        "http_status": (
+                            response.status_code
+                        ),
+                        "candidate_count": (
+                            len(unique_candidates)
+                        ),
+                        "candidates": (
+                            unique_candidates
+                        ),
+                        "discovery_status": (
+                            "CANDIDATES_FOUND"
+                            if unique_candidates
+                            else
+                            "NO_STRUCTURED_MATCH_CANDIDATES"
+                        ),
+                    }
+                )
+
+            except Exception as exc:
+                failures.append(
+                    {
+                        "competition_id": item[
+                            "competition_id"
+                        ],
+                        "source_id": item["source_id"],
+                        "url": item.get("url"),
+                        "error": str(exc),
+                    }
+                )
+
+    payload = {
+        "version": "V1.3",
+        "generated_at": (
+            datetime.now(
+                timezone.utc
+            ).isoformat()
+        ),
+        "verified_fixture_pairs": len(sources),
+        "source_results": results,
+        "failures": failures,
+        "rule": (
+            "Discovery is evidence-preserving and conservative. "
+            "Structured/API endpoints are accepted only when their "
+            "URLs are exposed by retrieved source material. "
+            "No match is promoted to a normalized fixture unless "
+            "home team, away team and kickoff can be established "
+            "from source evidence."
+        ),
+    }
+
+    OUT_FILE.write_text(
+        json.dumps(
+            payload,
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
+
+    print(
+        "SOURCE RESULTS:",
+        len(results),
+    )
+
+    print(
+        "SOURCES WITH CANDIDATES:",
+        sum(
+            1
+            for x in results
+            if x["candidate_count"] > 0
+        ),
+    )
+
+    print(
+        "SOURCES WITH STRUCTURED ENDPOINTS:",
+        sum(
+            1
+            for x in results
+            if x["structured_endpoint_count"] > 0
+        ),
+    )
+
+    print(
+        "STRUCTURED ENDPOINTS DISCOVERED:",
+        sum(
+            x["structured_endpoint_count"]
+            for x in results
+        ),
+    )
+
+    print(
+        "SOURCES WITHOUT STRUCTURED CANDIDATES:",
+        sum(
+            1
+            for x in results
+            if x["candidate_count"] == 0
+        ),
+    )
+
+    print(
+        "REQUEST FAILURES:",
+        len(failures),
+    )
+
+    print(
+        "SAVED:",
+        OUT_FILE,
+    )
+
+
+if __name__ == "__main__":
+    main()

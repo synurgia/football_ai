@@ -1,0 +1,225 @@
+{
+  "version": "V1.3",
+  "generated_at": "2026-09-18T00:32:36.810796+00:00",
+  "verified_fixture_pairs": 36,
+  "source_results": [],
+  "failures": [
+    {
+      "competition_id": "gha.2",
+      "source_id": "ghana_fa_official",
+      "url": "https://www.ghanafa.org/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "cod.1",
+      "source_id": "dr_congo_fecofa_official",
+      "url": "https://fecofa.cd/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "cod.2",
+      "source_id": "dr_congo_fecofa_official",
+      "url": "https://fecofa.cd/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "nga.1",
+      "source_id": "nigeria_nff_official",
+      "url": "https://thenff.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "sen.2",
+      "source_id": "senegal_fsf_official",
+      "url": "https://fsfoot.sn/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "nga.2",
+      "source_id": "nigeria_nff_official",
+      "url": "https://thenff.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "gha.1",
+      "source_id": "ghana_fa_official",
+      "url": "https://www.ghanafa.org/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "zaf.2",
+      "source_id": "south_africa_safa_official",
+      "url": "https://www.safa.net/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "ind.2",
+      "source_id": "india_aiff_official",
+      "url": "https://www.the-aiff.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "ind.1",
+      "source_id": "india_aiff_official",
+      "url": "https://www.the-aiff.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "aus.1",
+      "source_id": "australia_football_official",
+      "url": "https://footballaustralia.com.au/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "vnm.1",
+      "source_id": "vietnam_vff_official",
+      "url": "https://vff.org.vn/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "vnm.2",
+      "source_id": "vietnam_vff_official",
+      "url": "https://vff.org.vn/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "cro.2",
+      "source_id": "croatia_hns_official",
+      "url": "https://hns.family/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "de.1",
+      "source_id": "germany_dfb_official",
+      "url": "https://www.dfb.de/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "de.2",
+      "source_id": "germany_dfb_official",
+      "url": "https://www.dfb.de/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "de.3",
+      "source_id": "germany_dfb_official",
+      "url": "https://www.dfb.de/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "de.4",
+      "source_id": "germany_dfb_official",
+      "url": "https://www.dfb.de/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "eng.5",
+      "source_id": "england_fa_official",
+      "url": "https://www.thefa.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "hun.1",
+      "source_id": "hungary_mlsz_official",
+      "url": "https://www.mlsz.hu/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "nir.1",
+      "source_id": "northern_ireland_ifa_official",
+      "url": "https://www.irishfa.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "nir.2",
+      "source_id": "northern_ireland_ifa_official",
+      "url": "https://www.irishfa.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "svk.1",
+      "source_id": "slovakia_sfz_official",
+      "url": "https://futbalsfz.sk/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "svk.2",
+      "source_id": "slovakia_sfz_official",
+      "url": "https://futbalsfz.sk/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "svn.2",
+      "source_id": "slovenia_nzs_official",
+      "url": "https://www.nzs.si/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "arg.1",
+      "source_id": "argentina_afa_official",
+      "url": "https://www.afa.com.ar/es/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "chi.1",
+      "source_id": "chile_anfp_official",
+      "url": "https://www.anfp.cl/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "col.2",
+      "source_id": "colombia_fcf_official",
+      "url": "https://fcf.com.co/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "pan.1",
+      "source_id": "panama_fepafut_official",
+      "url": "https://www.fepafut.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "svn.1",
+      "source_id": "slovenia_nzs_official",
+      "url": "https://www.nzs.si/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "par.1",
+      "source_id": "paraguay_apf_official",
+      "url": "https://www.apf.org.py/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "uru.2",
+      "source_id": "uruguay_auf_official",
+      "url": "https://www.auf.org.uy/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "uru.1",
+      "source_id": "uruguay_auf_official",
+      "url": "https://www.auf.org.uy/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "caf.1",
+      "source_id": "caf_official",
+      "url": "https://www.cafonline.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "caf.2",
+      "source_id": "caf_official",
+      "url": "https://www.cafonline.com/",
+      "error": "name 'page_candidates' is not defined"
+    },
+    {
+      "competition_id": "fifa.1",
+      "source_id": "openfootball_data",
+      "url": "https://openfootball.github.io/",
+      "error": "name 'page_candidates' is not defined"
+    }
+  ],
+  "rule": "Discovery is evidence-preserving and conservative. Structured/API endpoints are accepted only when their URLs are exposed by retrieved source material. No match is promoted to a normalized fixture unless home team, away team and kickoff can be established from source evidence."
+}

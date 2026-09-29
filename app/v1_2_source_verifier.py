@@ -65,7 +65,7 @@ class V12SourceVerifier:
                     "Accept": "text/html,application/json,text/plain",
                     "User-Agent": "FootballAI-V1.2-SourceVerifier/1.0",
                 },
-                timeout=self.timeout,
+                timeout=httpx.Timeout(self.timeout, connect=min(self.timeout, 5.0), read=min(self.timeout, 5.0), write=min(self.timeout, 5.0), pool=min(self.timeout, 5.0)),
                 follow_redirects=True,
             )
 

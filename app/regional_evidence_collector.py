@@ -57,53 +57,99 @@ class RegionalEvidenceCollector:
     def collect(
         self,
         fixture: Dict[str, Any],
+        v13_sources: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
-        routing = self.resolver.resolve(fixture)
+        """Collect evidence from every registered source, in parallel.
 
-        records: List[CollectedSourceEvidence] = []
+        Sources included:
+          1. V1.3 registry sources for this competition (official-first)
+          2. Internal sources (regional_resolver, espn, openfoot)
+          3. Free internet sources (TheSportsDB, Wikidata, OpenLigaDB, FKF)
 
-        regional_sources = routing["regional_sources"]
-        global_sources = routing["global_sources"]
+        Every source runs. None is primary. Failures are recorded but do
+        not prevent other sources from contributing.
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        if not regional_sources:
-            records.append(
-                CollectedSourceEvidence(
-                    fixture=fixture,
-                    source_id="regional_resolver",
-                    source_name="Regional Source Resolver",
-                    status="NOT_CONFIGURED",
-                    evidence_types=[],
-                    reason=(
-                        "No configured regional source matched "
-                        "this fixture."
-                    ),
+        records: List[Dict[str, Any]] = []
+
+        # --- 1. Registry-driven sources ---
+        try:
+            registered = self._registered_sources_for_fixture(fixture, v13_sources)
+        except Exception:
+            registered = []
+
+        def _collect_registered(src):
+            try:
+                return self._collect_source(fixture, src)
+            except Exception as exc:
+                return {
+                    "fixture": fixture,
+                    "source_id": src.get("source_id", "unknown"),
+                    "source_name": src.get("name", ""),
+                    "status": "FAILED",
+                    "evidence_types": src.get("evidence_types", []),
+                    "evidence": {},
+                    "reason": str(exc),
+                    "observed_at": self._now(),
+                }
+
+        # --- 2. Internal source IDs always tried ---
+        internal_sources = [
+            {"source_id": "espn_global_soccer", "name": "ESPN Global Soccer",
+             "evidence_types": ["fixtures", "match_status", "teams", "results"]},
+            {"source_id": "regional_resolver", "name": "Regional Resolver",
+             "evidence_types": []},
+            {"source_id": "openfoot", "name": "OpenFoot",
+             "evidence_types": ["fixtures", "competition_data", "team_data"]},
+        ]
+
+        # --- 3. Internet providers ---
+        from app.regional_evidence_internet import ALL_INTERNET_FETCHERS
+
+        internet_futures = []
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            # registered
+            for src in registered + internal_sources:
+                internet_futures.append(
+                    ("registered", pool.submit(_collect_registered, src))
                 )
-            )
-
-        for source in regional_sources:
-            records.append(
-                self._collect_source(
-                    fixture,
-                    source,
+            # internet
+            for key, fn in ALL_INTERNET_FETCHERS.items():
+                internet_futures.append(
+                    ("internet", pool.submit(fn, fixture))
                 )
-            )
 
-        for source in global_sources:
-            records.append(
-                self._collect_source(
-                    fixture,
-                    source,
-                )
-            )
+            for kind, fut in internet_futures:
+                try:
+                    rec = fut.result(timeout=self.timeout + 3)
+                except Exception as exc:
+                    rec = {
+                        "fixture": fixture,
+                        "source_id": "unknown",
+                        "status": "FAILED",
+                        "evidence_types": [],
+                        "evidence": {},
+                        "reason": str(exc),
+                        "observed_at": self._now(),
+                    }
+                if isinstance(rec, dict):
+                    records.append(rec)
+
+        # deduplicate by source_id (registry may overlap with internal)
+        seen = set()
+        deduped = []
+        for rec in records:
+            sid = rec.get("source_id") or "unknown"
+            if sid in seen:
+                continue
+            seen.add(sid)
+            deduped.append(rec)
 
         return {
             "fixture": fixture,
-            "routing_status": routing["status"],
-            "records": [
-                record.to_dict()
-                for record in records
-            ],
-            "summary": self._summary(records),
+            "collected_at": self._now(),
+            "records": deduped,
         }
 
     def _collect_source(
@@ -132,46 +178,49 @@ class RegionalEvidenceCollector:
                 source,
             )
 
-        return CollectedSourceEvidence(
-            fixture=fixture,
-            source_id=source_id,
-            source_name=source["name"],
-            status="NOT_CONFIGURED",
-            evidence_types=source["evidence_types"],
-            reason=(
-                "Source is registered for routing but has no "
-                "collector adapter yet."
-            ),
+        return self._collect_generic_web(
+            fixture,
+            source,
         )
 
-    def _collect_espn(
+    def _collect_generic_web(
         self,
         fixture: Dict[str, Any],
         source: Dict[str, Any],
     ) -> CollectedSourceEvidence:
+        """Collect reachability/evidence from a registered public web source.
 
-        date = self._fixture_date(fixture)
+        This is deliberately generic. It does not treat a successful HTTP
+        response as fixture verification. Fixture-specific verification is
+        only reported when the requested teams can actually be found in the
+        returned content.
+        """
+        url = source.get("base_url") or source.get("url")
 
-        if not date:
-            return self._insufficient(
-                fixture,
-                source,
-                "Fixture has no usable kickoff date.",
+        if not url:
+            return CollectedSourceEvidence(
+                fixture=fixture,
+                source_id=source["source_id"],
+                source_name=source["name"],
+                status="NOT_CONFIGURED",
+                evidence_types=source.get("evidence_types", []),
+                reason="Registered source has no usable base URL.",
             )
-
-        url = (
-            "https://site.api.espn.com/apis/site/v2/"
-            f"sports/soccer/all/scoreboard?dates="
-            f"{date.replace('-', '')}"
-        )
 
         try:
             response = httpx.get(
                 url,
                 timeout=self.timeout,
+                follow_redirects=True,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Linux; Android) "
+                        "FootballAI/1.3"
+                    )
+                },
             )
             response.raise_for_status()
-            payload = response.json()
+            body = response.text or ""
         except Exception as exc:
             return self._failed(
                 fixture,
@@ -180,34 +229,90 @@ class RegionalEvidenceCollector:
                 str(exc),
             )
 
-        events = payload.get("events", [])
-
-        matched = self._find_event(
-            fixture,
-            events,
-        )
-
-        if matched is None:
+        if not body.strip():
             return self._insufficient(
                 fixture,
                 source,
-                "ESPN responded, but the requested fixture "
-                "was not found in the returned events.",
+                "Source responded successfully but returned an empty page.",
                 url,
             )
 
-        return CollectedSourceEvidence(
-            fixture=fixture,
-            source_id=source["source_id"],
-            source_name=source["name"],
-            status="VERIFIED",
-            evidence_types=source["evidence_types"],
-            evidence={
-                "event": matched,
-                "response_event_count": len(events),
-            },
-            source_reference=url,
-            observed_at=self._now(),
+        home = str(fixture.get("home_team") or "").strip()
+        away = str(fixture.get("away_team") or "").strip()
+
+        body_lower = body.lower()
+        home_found = bool(home) and home.lower() in body_lower
+        away_found = bool(away) and away.lower() in body_lower
+
+        if home_found and away_found:
+            return CollectedSourceEvidence(
+                fixture=fixture,
+                source_id=source["source_id"],
+                source_name=source["name"],
+                status="VERIFIED",
+                evidence_types=source.get("evidence_types", []),
+                evidence={
+                    "match_presence": {
+                        "home_team_found": True,
+                        "away_team_found": True,
+                    },
+                    "response_bytes": len(response.content),
+                },
+                source_reference=str(response.url),
+                observed_at=self._now(),
+            )
+
+        return self._insufficient(
+            fixture,
+            source,
+            (
+                "Source responded successfully, but the returned content "
+                "did not establish this fixture. "
+                f"home_found={home_found}, away_found={away_found}."
+            ),
+            str(response.url),
+        )
+
+
+    def _collect_espn(
+        self,
+        fixture: Dict[str, Any],
+        source: Dict[str, Any],
+    ) -> CollectedSourceEvidence:
+        """Strict ESPN collector.
+
+        Delegates to app.regional_evidence_collector_espn_fix.collect_espn_strict,
+        which enforces:
+          1. ESPN is queried with today's/yesterday's/tomorrow's date only.
+          2. An event is accepted only when BOTH home and away team names
+             appear among its competitors.
+        """
+        from app.regional_evidence_collector_espn_fix import collect_espn_strict
+
+        def _success(fx, src, url, evidence, evidence_types):
+            return CollectedSourceEvidence(
+                fixture=fx,
+                source_id=src["source_id"],
+                source_name=src["name"],
+                status="VERIFIED",
+                evidence_types=evidence_types,
+                evidence=evidence,
+                source_reference=url,
+                observed_at=self._now(),
+            )
+
+        def _failure(fx, src, url, err):
+            return self._failed(fx, src, url, err)
+
+        def _insufficient(fx, src, reason, url=None):
+            return self._insufficient(fx, src, reason, url)
+
+        return collect_espn_strict(
+            fixture, source,
+            timeout=self.timeout,
+            make_failure=_failure,
+            make_insufficient=_insufficient,
+            make_success=_success,
         )
 
     def _collect_openfoot(

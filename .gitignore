@@ -1,2 +1,58 @@
+# --- Secrets (never commit) ---
+.env
+*.env
+secrets.json
+**/secrets.json
+*.key
+*.pem
+
+# --- Databases (too large, live data) ---
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# --- Python cache ---
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Backups ---
+backups/
+*.bak
+*.broken
+*.py.bak
+*.before_*
+*.old
+
+# --- Termux / editor ---
+.termux/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Environment ---
+.venv/
+venv/
+env/
+
+# --- Checkpoint / snapshot DBs ---
+*.v1_*_checkpoint
+*.v1_*
+data/*.v1_*
+data/*checkpoint*

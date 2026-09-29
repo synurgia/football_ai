@@ -4,7 +4,7 @@ V1.3 AUTHORITATIVE COMPETITION CATALOGUE
 Ground-truth catalogue derived from the V1.3 Global Football Competition Map PDF.
 
 IMPORTANT:
-- Exactly 195 catalogue entries.
+- Exactly 235 catalogue entries.
 - This is a reference catalogue, NOT a live-source registry.
 - Source coverage is handled separately by v1_3_source_registry.py.
 - Missing live source coverage must never remove a competition from this catalogue.
@@ -20,6 +20,44 @@ class V13Competition(TypedDict):
 
 
 V13_COMPETITION_CATALOGUE: List[V13Competition] = [
+    {"competition_id": "usa.ncaaw", "name": "NCAA Women's Soccer", "region": "AMERICAS"},
+    {"competition_id": "friendly.club", "name": "Club Friendly", "region": "INTERNATIONAL"},
+    {"competition_id": "uefa.nations", "name": "UEFA Nations League", "region": "EUROPE"},
+    {"competition_id": "friendly.intl.men", "name": "Men's International Friendly", "region": "INTERNATIONAL"},
+    {"competition_id": "esp.w.1", "name": "Liga F", "region": "EUROPE"},
+    {"competition_id": "por.cup", "name": "Taca de Portugal", "region": "EUROPE"},
+    {"competition_id": "esp.2", "name": "LaLiga 2", "region": "EUROPE"},
+    {"competition_id": "eng.w.1", "name": "Women's Super League", "region": "EUROPE"},
+    {"competition_id": "fr.w.1", "name": "Première Ligue", "region": "EUROPE"},
+    {"competition_id": "esp.w.cup", "name": "Copa de la Reina", "region": "EUROPE"},
+    {"competition_id": "eng.cup", "name": "Carabao Cup", "region": "EUROPE"},
+    {"competition_id": "esp.cup", "name": "Copa del Rey", "region": "EUROPE"},
+    {"competition_id": "usa.w.1", "name": "NWSL", "region": "AMERICAS"},
+    {"competition_id": "chi.cup", "name": "Copa Chile", "region": "AMERICAS"},
+    {"competition_id": "usa.w.2", "name": "USL Super League", "region": "AMERICAS"},
+    {"competition_id": "uefa.u21q", "name": "UEFA U-21 Qualifying", "region": "EUROPE"},
+    {"competition_id": "friendly.intl.women", "name": "Women's International Friendly", "region": "INTERNATIONAL"},
+    {"competition_id": "can.w.1", "name": "Northern Super League", "region": "AMERICAS"},
+    {"competition_id": "slv.1", "name": "Primera Division", "region": "AMERICAS"},
+    {"competition_id": "gtm.1", "name": "Liga Nacional", "region": "AMERICAS"},
+    {"competition_id": "eng.fa.cup.q", "name": "FA Cup Qualifying", "region": "EUROPE"},
+    {"competition_id": "sco.cup", "name": "Scottish League Cup", "region": "EUROPE"},
+    {"competition_id": "bol.cup", "name": "Copa Bolivia", "region": "AMERICAS"},
+    {"competition_id": "concacaf.nations", "name": "Concacaf Nations League", "region": "AMERICAS"},
+    {"competition_id": "caf.afconq", "name": "AFCON Qualifying", "region": "AFRICA"},
+    {"competition_id": "kos.1", "name": "Superliga", "region": "EUROPE"},
+    {"competition_id": "ned.w.1", "name": "Vrouwen Eredivisie", "region": "EUROPE"},
+    {"competition_id": "ita.cup", "name": "Coppa Italia", "region": "EUROPE"},
+    {"competition_id": "col.cup", "name": "Copa Colombia", "region": "AMERICAS"},
+    {"competition_id": "bel.1", "name": "Belgian Pro League", "region": "EUROPE"},
+    {"competition_id": "gulf.cup", "name": "Arabian Gulf Cup", "region": "ASIA"},
+    {"competition_id": "est.1", "name": "Premium Liiga", "region": "EUROPE"},
+    {"competition_id": "blr.1", "name": "Premier League", "region": "EUROPE"},
+    {"competition_id": "uefa.w.cup", "name": "Women's Europa Cup", "region": "EUROPE"},
+    {"competition_id": "usa.cup", "name": "U.S. Open Cup", "region": "AMERICAS"},
+    {"competition_id": "sco.cup.q", "name": "Scottish Cup Qualifying", "region": "EUROPE"},
+    {"competition_id": "sco.challenge", "name": "SPFL Challenge Cup", "region": "EUROPE"},
+    {"competition_id": "eng.trophy", "name": "EFL Trophy", "region": "EUROPE"},
     # ============================================================
     # AFRICA
     # ============================================================
@@ -234,6 +272,13 @@ V13_COMPETITION_CATALOGUE: List[V13Competition] = [
     {"competition_id": "fifa.1", "name": "FIFA World Cup", "region": "INTERNATIONAL"},
     {"competition_id": "fifa.2", "name": "FIFA Club World Cup", "region": "INTERNATIONAL"},
     {"competition_id": "fifa.3", "name": "FIFA Intercontinental Cup", "region": "INTERNATIONAL"},
+
+    {"competition_id": "rus.1", "name": "Russian Premier League", "region": "EUROPE"},
+    {"competition_id": "esp.1", "name": "LaLiga", "region": "EUROPE"},
+    {"competition_id": "ned.2", "name": "KNVB Beker Women", "region": "EUROPE"},
+    {"competition_id": "usa.5", "name": "NCAA Men's Soccer", "region": "AMERICAS"},
+    {"competition_id": "ven.1", "name": "Liga FUTVE", "region": "AMERICAS"},
+    {"competition_id": "arg.3", "name": "Copa Argentina", "region": "AMERICAS"},
 ]
 
 
@@ -270,7 +315,7 @@ def catalogue_integrity() -> Dict[str, object]:
     })
 
     return {
-        "expected": 195,
+        "expected": 235,
         "actual": len(ids),
         "unique": len(set(ids)),
         "duplicates": duplicates,

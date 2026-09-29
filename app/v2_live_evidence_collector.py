@@ -126,11 +126,32 @@ class V2LiveEvidenceCollector:
     def apply_external_evidence(self, state, envelope):
         """
         Apply externally collected evidence through the canonical
-        V1.2 evidence applier.
+        V1.2 evidence applier, then derive concrete answers from the
+        evidence payload.
 
-        This does not answer questions semantically.
+        The applier attaches evidence and marks status. The extractor
+        derives the actual `answer` field that V1.4/V1.5 read.
         """
-        return self.external_applier.apply(state, envelope)
+        applied = self.external_applier.apply(state, envelope)
+
+        # Extract concrete answers from the evidence payload.
+        # Without this, status=VERIFIED but answer=UNKNOWN, and V1.5 sees nothing.
+        try:
+            from app.evidence_answer_extractor import extract_answers
+
+            evidence_payload = None
+            if hasattr(envelope, "evidence"):
+                evidence_payload = envelope.evidence
+            elif isinstance(envelope, dict):
+                evidence_payload = envelope.get("evidence")
+
+            if evidence_payload is not None:
+                extract_answers(state, evidence_payload)
+        except Exception:
+            # Extraction failures must not break evidence application.
+            pass
+
+        return applied
 
     def collect(
         self,

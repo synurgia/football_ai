@@ -1,0 +1,255 @@
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urljoin
+
+import httpx
+
+CAPABILITY_FILE = Path("data/v13_source_capability_map.json")
+OUT_FILE = Path("data/v13_match_discovery_candidates.json")
+TIMEOUT = 20.0
+HEADERS = {"User-Agent": "FootballAI-V1.3/1.0"}
+
+DATE_RE = re.compile(
+    r"\b(?:20\d{2}[-/]\d{1,2}[-/]\d{1,2}"
+    r"|\d{1,2}[-/]\d{1,2}[-/](?:20)?\d{2})\b"
+)
+
+FOOTBALL_SIGNAL_RE = re.compile(
+    r"\b(?:fixture|fixtures|match|matches|kick[\s-]?off|"
+    r"schedule|result|results|standings|league|cup)\b",
+    re.I,
+)
+
+
+def clean_text(text):
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def extract_match_candidates(text):
+    """
+    Conservative discovery only.
+
+    Records evidence-bearing text blocks rather than inventing
+    team/kickoff structure when a source page does not expose it cleanly.
+    """
+    text = clean_text(text)
+
+    if not text:
+        return []
+
+    if not FOOTBALL_SIGNAL_RE.search(text):
+        return []
+
+    dates = DATE_RE.findall(text)
+    candidates = []
+
+    for match in re.finditer(
+        r".{0,220}\b(?:fixture|fixtures|match|matches|kick[\s-]?off|schedule)\b.{0,320}",
+        text,
+        re.I,
+    ):
+        snippet = clean_text(match.group(0))
+
+        candidates.append(
+            {
+                "evidence_snippet": snippet,
+                "date_signals": dates[:10],
+            }
+        )
+
+        if len(candidates) >= 20:
+            break
+
+    return candidates
+
+
+def main():
+    data = json.loads(CAPABILITY_FILE.read_text())
+
+    sources = [
+        x
+        for x in data["capabilities"]
+        if x["coverage_status"] == "VERIFIED"
+        and x["capabilities"].get("fixtures") is True
+    ]
+
+    results = []
+    failures = []
+
+    print("=== V1.3 MATCH DISCOVERY ===")
+    print("FIXTURE-CAPABLE VERIFIED PAIRS:", len(sources))
+
+    with httpx.Client(
+        timeout=TIMEOUT,
+        follow_redirects=True,
+        headers=HEADERS,
+    ) as client:
+
+        for item in sources:
+            try:
+                root_url = item.get("url")
+
+                response = client.get(root_url)
+
+                visited = set()
+                pages = []
+
+                def add_page(response_obj):
+                    final = str(response_obj.url)
+
+                    if final in visited:
+                        return
+
+                    visited.add(final)
+
+                    pages.append(
+                        {
+                            "url": final,
+                            "http_status": response_obj.status_code,
+                            "text": response_obj.text,
+                        }
+                    )
+
+                add_page(response)
+
+                root_host = httpx.URL(str(response.url)).host
+
+                link_pattern = re.compile(
+                    r'href=["\']([^"\']+)["\']',
+                    re.I,
+                )
+
+                link_signals = re.compile(
+                    r"(fixture|fixtures|schedule|schedules|match|matches|"
+                    r"kick[-_ ]?off|result|results|calendar|games?)",
+                    re.I,
+                )
+
+                discovered_links = []
+
+                for href in link_pattern.findall(response.text):
+                    absolute = urljoin(str(response.url), href)
+
+                    try:
+                        parsed = httpx.URL(absolute)
+                    except Exception:
+                        continue
+
+                    if parsed.host != root_host:
+                        continue
+
+                    if not link_signals.search(absolute):
+                        continue
+
+                    if absolute not in discovered_links:
+                        discovered_links.append(absolute)
+
+                    if len(discovered_links) >= 12:
+                        break
+
+                for fixture_url in discovered_links:
+                    if fixture_url in visited:
+                        continue
+
+                    try:
+                        linked_response = client.get(fixture_url)
+                        add_page(linked_response)
+                    except Exception:
+                        continue
+
+                all_candidates = []
+
+                for page in pages:
+                    page_candidates = extract_match_candidates(
+                        page["text"]
+                    )
+
+                    for candidate in page_candidates:
+                        candidate["discovered_url"] = page["url"]
+                        candidate["http_status"] = page["http_status"]
+                        all_candidates.append(candidate)
+
+                unique_candidates = []
+                seen = set()
+
+                for candidate in all_candidates:
+                    key = (
+                        candidate.get("evidence_snippet", ""),
+                        candidate.get("discovered_url", ""),
+                    )
+
+                    if key in seen:
+                        continue
+
+                    seen.add(key)
+                    unique_candidates.append(candidate)
+
+                final_url = str(response.url)
+
+                results.append(
+                    {
+                        "competition_id": item["competition_id"],
+                        "competition_name": item["competition_name"],
+                        "source_id": item["source_id"],
+                        "source_name": item["source_name"],
+                        "url": item.get("url"),
+                        "final_url": final_url,
+                        "discovered_urls": [
+                            page["url"] for page in pages
+                        ],
+                        "http_status": response.status_code,
+                        "candidate_count": len(unique_candidates),
+                        "candidates": unique_candidates,
+                        "discovery_status": (
+                            "CANDIDATES_FOUND"
+                            if unique_candidates
+                            else "NO_STRUCTURED_MATCH_CANDIDATES"
+                        ),
+                    }
+                )
+
+            except Exception as exc:
+                failures.append(
+                    {
+                        "competition_id": item["competition_id"],
+                        "source_id": item["source_id"],
+                        "url": item.get("url"),
+                        "error": str(exc),
+                    }
+                )
+
+    payload = {
+        "version": "V1.3",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "verified_fixture_pairs": len(sources),
+        "source_results": results,
+        "failures": failures,
+        "rule": (
+            "Discovery is evidence-preserving and conservative. "
+            "No match is promoted to a normalized fixture unless "
+            "home team, away team and kickoff can be established "
+            "from source evidence."
+        ),
+    }
+
+    OUT_FILE.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False)
+    )
+
+    print("SOURCE RESULTS:", len(results))
+    print(
+        "SOURCES WITH CANDIDATES:",
+        sum(1 for x in results if x["candidate_count"] > 0),
+    )
+    print(
+        "SOURCES WITHOUT STRUCTURED CANDIDATES:",
+        sum(1 for x in results if x["candidate_count"] == 0),
+    )
+    print("REQUEST FAILURES:", len(failures))
+    print("SAVED:", OUT_FILE)
+
+
+if __name__ == "__main__":
+    main()

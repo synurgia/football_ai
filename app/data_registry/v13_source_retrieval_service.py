@@ -93,10 +93,21 @@ class V13SourceRetrievalService:
             if mapping.competition_id == competition_id
         ]
 
+        # Retrieve every distinct applicable source exactly once.
+        # Multiple registry rows for the same source_id must not create
+        # duplicate retrievals. No source is excluded because of priority.
         sources: List[Dict[str, str]] = []
+        seen_source_ids = set()
 
         for mapping in mapped_sources:
-            source = V13_SOURCES.get(mapping.source_id)
+            source_id = mapping.source_id
+
+            if source_id in seen_source_ids:
+                continue
+
+            seen_source_ids.add(source_id)
+
+            source = V13_SOURCES.get(source_id)
 
             if source is None:
                 continue

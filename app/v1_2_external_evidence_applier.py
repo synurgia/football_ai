@@ -6,6 +6,36 @@ from app.v2_evidence_manager import V2EvidenceManager
 from app.v2_evidence_state import V2EvidenceState
 
 
+CAPABILITY_REQUIREMENT_ALIASES = {
+    "competition_rules": {"competition_rules"},
+    "financial_context": {"financial_context"},
+    "team_changes": {"squad_changes", "manager_changes", "tactical_changes"},
+    "motivation": {"standings", "fixtures", "competition_rules"},
+    "results": {"historical_results", "team_statistics", "xg"},
+    "geopolitical_context": {"geopolitical_context", "news"},
+    "public_context": {"public_signal", "reputation_context"},
+    "team_identity": {"team_identity"},
+    "competition_context": {"standings", "competition_stage", "competition_rules"},
+    "team_strength": {"rankings", "ratings", "team_strength", "xg"},
+    "model_analysis": {"model_output", "model_inputs"},
+    "team_matrix": {"team_statistics", "performance_metrics"},
+    "statistical_models": {"historical_results", "team_statistics", "model_inputs", "statistical_models"},
+    "tactical_analysis": {"tactical_data", "formations", "team_statistics"},
+    "standings": {"standings", "rankings", "team_statistics"},
+    "market_context": {"market_context"},
+    "schedule": {"fixtures", "travel", "rest", "rotation", "competition_stage"},
+    "weather_venue": {"weather", "venue_condition", "pitch_condition"},
+    "defensive_resistance": {"defensive_statistics", "tactical_data"},
+    "tactical_metrics": {"formations", "tactical_metrics", "lineups"},
+    "transition_analysis": {"transition_metrics", "pace", "finishing", "tactical_data"},
+    "favorite_risk": {"finishing", "goalkeeping", "historical_matchups", "team_strength"},
+    "opponent_resistance": {"historical_results", "opponent_strength"},
+    "bayesian_adjustment": {"model_inputs", "statistical_models", "bayesian_adjustments"},
+    "match_status": {"referee_appointment", "referee_statistics", "expected_lineup", "confirmed_lineup", "formations"},
+    "pitch_conditions": {"venue", "pitch_dimensions", "surface", "grass", "watering"},
+}
+
+
 class V12ExternalEvidenceApplier:
     """
     Applies external evidence to the existing canonical V2 question state.
@@ -40,6 +70,22 @@ class V12ExternalEvidenceApplier:
                 raise KeyError(
                     f"Canonical question not found: {question_id}"
                 )
+
+            allowed_requirements = set(
+                CAPABILITY_REQUIREMENT_ALIASES.get(
+                    envelope.capability,
+                    {envelope.capability},
+                )
+            )
+
+            question_requirements = set(
+                getattr(question, "evidence_requirements", [])
+            )
+
+            if question_requirements and not (
+                allowed_requirements & question_requirements
+            ):
+                continue
 
             piece = int(question.piece)
 

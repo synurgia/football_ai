@@ -35,7 +35,12 @@ class V2EvidenceManager:
                 answer="UNKNOWN",
                 evidence="No verified evidence collected yet.",
                 supports="UNKNOWN",
-                status="UNVERIFIED",
+                status=question.get("default_status", "UNVERIFIED"),
+                evidence_requirements=question.get("evidence_requirements", []),
+                source_domains=question.get("source_domains", []),
+                answer_mode=question.get("answer_mode", "EVIDENCE_DERIVED"),
+                minimum_evidence=question.get("minimum_evidence", []),
+                staleness_policy=question.get("staleness_policy", "RECENT"),
             )
 
         return state

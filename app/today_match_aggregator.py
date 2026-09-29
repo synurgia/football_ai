@@ -7,6 +7,8 @@ import httpx
 
 from app.data_providers.openfoot_provider import OpenFootProvider
 from app.data_registry.v13_competition_identity_resolver import V13CompetitionIdentityResolver
+from app.data_registry.global_competition_universe import build_v13_global_competition_universe
+from app.data_registry.v13_source_retrieval_service import V13SourceRetrievalService
 
 
 class TodayMatchAggregator:
@@ -30,6 +32,58 @@ class TodayMatchAggregator:
         openfoot_provider: Optional[OpenFootProvider] = None,
     ) -> None:
         self.openfoot = openfoot_provider or OpenFootProvider()
+        self.v13_universe = build_v13_global_competition_universe()
+        self.v13_sources = V13SourceRetrievalService(self.v13_universe)
+
+
+    def _collect_unified_sources(self, matches):
+        """Collect applicable V1.3 source mappings without live HTTP retrieval.
+
+        Source verification/retrieval is deferred to the V1.3 evidence stage.
+        Daily match discovery must never block on external source response time.
+        """
+        unified_sources = []
+        seen = set()
+
+        try:
+            from app.data_registry.v1_3_source_registry import (
+                V13_COMPETITION_SOURCE_MAP,
+            )
+        except Exception:
+            V13_COMPETITION_SOURCE_MAP = []
+
+        competition_ids = []
+        for match in matches:
+            cid = match.get("competition_id")
+            if cid and cid not in competition_ids:
+                competition_ids.append(cid)
+
+        for mapping in V13_COMPETITION_SOURCE_MAP:
+            if getattr(mapping, "competition_id", None) not in competition_ids:
+                continue
+
+            source_id = getattr(mapping, "source_id", None)
+            if not source_id:
+                continue
+
+            key = (
+                getattr(mapping, "competition_id", None),
+                source_id,
+            )
+            if key in seen:
+                continue
+
+            seen.add(key)
+            unified_sources.append({
+                "competition_id": key[0],
+                "source_id": source_id,
+                "priority": getattr(mapping, "priority", None),
+                "coverage_status": getattr(mapping, "coverage_status", None),
+                "status": getattr(mapping, "status", None),
+                "notes": getattr(mapping, "notes", None),
+            })
+
+        return unified_sources
 
     def load_today(
         self,
@@ -206,6 +260,20 @@ class TodayMatchAggregator:
 
                 existing["discovery_sources"] = sources
 
+                # CROSS-SOURCE IDENTITY ENRICHMENT
+                # Preserve identity supplied by another discovery source.
+                # Never invent or overwrite an existing identity.
+                for field in (
+                    "competition_id",
+                    "competition_country",
+                    "country_code",
+                    "country",
+                    "league_country",
+                ):
+                    if not existing.get(field) and match.get(field):
+                        existing[field] = match[field]
+
+
             else:
                 key_to_index[key] = len(
                     unique_matches
@@ -236,7 +304,21 @@ class TodayMatchAggregator:
                 match["competition_identity_method"] = "NONE"
                 continue
 
-            identity = identity_resolver.resolve(str(competition_name))
+            # V1.3: competition identity is system-wide.
+            # Use existing fixture context when available.
+            # Never infer country from team names.
+            country_context = (
+                match.get("country_code")
+                or match.get("country")
+                or match.get("competition_country")
+                or match.get("league_country")
+            )
+
+            identity = identity_resolver.resolve(
+                str(competition_name),
+                country=country_context,
+                competition_id=match.get("competition_id"),
+            )
 
             match["competition_id"] = identity.get("competition_id")
             match["competition_name_canonical"] = identity.get(
@@ -286,6 +368,44 @@ class TodayMatchAggregator:
         match: Dict[str, Any],
     ) -> Dict[str, Any]:
 
+        # Preserve source-provided identity metadata.
+        # Never invent a V1.3 competition ID here.
+        competition = match.get("competition")
+
+        competition_id = (
+            match.get("competition_id")
+            or (
+                competition.get("id")
+                if isinstance(competition, dict)
+                else None
+            )
+        )
+
+        competition_name = (
+            competition.get("name")
+            if isinstance(competition, dict)
+            else competition
+        )
+
+        country_code = match.get("country_code")
+        competition_country = match.get(
+            "competition_country"
+        )
+
+        if isinstance(competition, dict):
+            country = competition.get("country")
+
+            if isinstance(country, dict):
+                country_code = (
+                    country.get("alpha2")
+                    or country.get("code")
+                    or country_code
+                )
+                competition_country = (
+                    country.get("name")
+                    or competition_country
+                )
+
         return {
             "source": "openfoot",
             "source_match_id": match.get(
@@ -293,9 +413,10 @@ class TodayMatchAggregator:
             ) or match.get(
                 "source_match_id"
             ),
-            "competition": match.get(
-                "competition"
-            ),
+            "competition": competition_name,
+            "competition_id": competition_id,
+            "country_code": country_code,
+            "competition_country": competition_country,
             "season": match.get("season"),
             "kickoff_at": match.get(
                 "kickoff_at"
@@ -377,12 +498,35 @@ class TodayMatchAggregator:
             or competition.get("name")
         )
 
+        # Preserve source-provided identity metadata.
+        # Never invent a V1.3 competition ID here.
+        competition_id = (
+            competition.get("id")
+            or league.get("id")
+            or None
+        )
+
+        country_code = (
+            league.get("country", {}).get("alpha2")
+            if isinstance(league.get("country"), dict)
+            else None
+        )
+
+        competition_country = (
+            league.get("country", {}).get("name")
+            if isinstance(league.get("country"), dict)
+            else None
+        )
+
         return {
             "source": "espn",
             "source_match_id": event.get(
                 "id"
             ),
             "competition": competition_name,
+            "competition_id": competition_id,
+            "country_code": country_code,
+            "competition_country": competition_country,
             "season": (
                 str(season.get("year"))
                 if season.get("year") is not None

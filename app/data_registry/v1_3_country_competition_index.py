@@ -88,6 +88,13 @@ COUNTRY_BY_PREFIX = {
     "vnm": "Vietnam",
     "zaf": "South Africa",
     "zmb": "Zambia",
+    "bel": "Belgium",
+    "blr": "Belarus",
+    "can": "Canada",
+    "est": "Estonia",
+    "gtm": "Guatemala",
+    "kos": "Kosovo",
+    "slv": "El Salvador",
 }
 
 # These are deliberately NOT countries.
@@ -97,6 +104,8 @@ REGIONAL_PREFIXES = {
     "concacaf",
     "conmebol",
     "fifa",
+    "friendly",
+    "gulf",
     "ofc",
     "uefa",
 }
@@ -109,6 +118,16 @@ def _prefix(competition_id: str) -> str:
 def _build_index() -> Dict[str, List[Dict[str, Any]]]:
     index: Dict[str, List[Dict[str, Any]]] = {}
 
+    # V1.3 explicit country mapping for Russian Premier League
+    country_overrides = {
+        "rus": "Russia",
+        "esp": "Spain",
+        "ned": "Netherlands",
+        "usa": "United States",
+        "ven": "Venezuela",
+        "arg": "Argentina",
+    }
+
     for competition in V13_COMPETITION_CATALOGUE:
         competition_id = competition["competition_id"]
         prefix = _prefix(competition_id)
@@ -116,7 +135,7 @@ def _build_index() -> Dict[str, List[Dict[str, Any]]]:
         if prefix in REGIONAL_PREFIXES:
             continue
 
-        country = COUNTRY_BY_PREFIX.get(prefix)
+        country = country_overrides.get(prefix) or COUNTRY_BY_PREFIX.get(prefix)
         if country is None:
             raise ValueError(
                 f"V1.3 country mapping missing for catalogue prefix: {prefix} "

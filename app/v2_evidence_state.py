@@ -24,6 +24,12 @@ class V2EvidenceItem:
 
     notes: Optional[str] = None
 
+    evidence_requirements: List[str] = field(default_factory=list)
+    source_domains: List[str] = field(default_factory=list)
+    answer_mode: str = "EVIDENCE_DERIVED"
+    minimum_evidence: List[str] = field(default_factory=list)
+    staleness_policy: str = "RECENT"
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "piece": self.piece,
@@ -39,6 +45,11 @@ class V2EvidenceItem:
             "impact": self.impact,
             "status": self.status,
             "notes": self.notes,
+            "evidence_requirements": self.evidence_requirements,
+            "source_domains": self.source_domains,
+            "answer_mode": self.answer_mode,
+            "minimum_evidence": self.minimum_evidence,
+            "staleness_policy": self.staleness_policy,
         }
 
 
@@ -70,6 +81,11 @@ class V2EvidenceState:
         impact: Optional[float] = None,
         status: str = "UNVERIFIED",
         notes: Optional[str] = None,
+        evidence_requirements: Optional[List[str]] = None,
+        source_domains: Optional[List[str]] = None,
+        answer_mode: str = "EVIDENCE_DERIVED",
+        minimum_evidence: Optional[List[str]] = None,
+        staleness_policy: str = "RECENT",
     ) -> V2EvidenceItem:
         item = V2EvidenceItem(
             piece=piece,
@@ -85,6 +101,11 @@ class V2EvidenceState:
             impact=impact,
             status=status,
             notes=notes,
+              evidence_requirements=evidence_requirements or [],
+              source_domains=source_domains or [],
+              answer_mode=answer_mode,
+              minimum_evidence=minimum_evidence or [],
+              staleness_policy=staleness_policy,
         )
 
         self.items.append(item)

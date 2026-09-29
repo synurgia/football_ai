@@ -47,11 +47,18 @@ class EvidenceStateStore:
     def save_state(self, state: V2EvidenceState) -> None:
         state_dict = asdict(state)
 
+        # match_date: derive from match_id prefix (authoritative,
+        # matches the `matches` table format). Fallback to created_at.
         match_date = None
-        kickoff_at = state_dict.get("created_at")
-
-        if kickoff_at:
-            match_date = str(kickoff_at)[:10]
+        import re as _re
+        _mid = str(state.match_id or "")
+        _m = _re.match(r"^(\d{4}-\d{2}-\d{2})", _mid)
+        if _m:
+            match_date = _m.group(1)
+        if not match_date:
+            kickoff_at = state_dict.get("created_at")
+            if kickoff_at:
+                match_date = str(kickoff_at)[:10]
 
         conn = self._connect()
         try:

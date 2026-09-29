@@ -66,37 +66,47 @@ class WorldwideReadinessService:
         tomorrow_matches: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
 
+        # Two independent tracks that both run for every match:
+        #   ready       -> prediction track
+        #   reasoning   -> intelligence track (always populated when eligible)
+        #   held        -> match scanned but identity/context incomplete
+
         today_ready = []
-        today_insufficient = []
+        today_reasoning = []
+        today_held = []
         tomorrow_preparation = []
 
         for match in today_matches:
-            result = self.evaluate_match(
-                match,
-                day_role="today",
-            )
+            result = self.evaluate_match(match, day_role="today")
+            readiness = result["readiness"]
 
-            if result["readiness"]["process"]:
+            if readiness.get("process"):
                 today_ready.append(result)
+
+            if readiness.get("reasoning_eligible"):
+                today_reasoning.append(result)
             else:
-                today_insufficient.append(result)
+                today_held.append(result)
 
         for match in tomorrow_matches or []:
             tomorrow_preparation.append(
-                self.evaluate_match(
-                    match,
-                    day_role="tomorrow",
-                )
+                self.evaluate_match(match, day_role="tomorrow")
             )
 
         return {
             "today_ready": today_ready,
-            "today_insufficient": today_insufficient,
+            "today_reasoning": today_reasoning,
+            "today_held": today_held,
+            # kept for backwards compatibility with existing callers
+            "today_insufficient": today_held,
             "tomorrow_preparation": tomorrow_preparation,
+            "all_today": today_ready + today_reasoning + today_held,
             "summary": {
                 "today_total": len(today_matches),
                 "today_ready": len(today_ready),
-                "today_insufficient": len(today_insufficient),
+                "today_reasoning": len(today_reasoning),
+                "today_held": len(today_held),
+                "today_insufficient": len(today_held),
                 "tomorrow_preparation": len(tomorrow_preparation),
             },
         }

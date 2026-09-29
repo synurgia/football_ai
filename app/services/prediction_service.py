@@ -8,6 +8,7 @@ from app.models.match_data import (
 from app.orchestration.analytical_pipeline import PreMatchAnalyticalPipeline
 from app.v1_2_piece_evidence_bridge import V12PieceEvidenceBridge
 from app.v1_2_semantic_resolver import V12SemanticResolver
+from app.v2_question_registry import get_all_questions
 from app.v1_2_advantage_synthesis import V12AdvantageSynthesis
 from app.orchestration.master_orchestrator import (
     MasterMatchOrchestrator,
@@ -178,6 +179,18 @@ def run_prediction(payload: Dict[str, Any]) -> Dict[str, Any]:
     v12_synthesis = V12AdvantageSynthesis()
     v12_advantage = v12_synthesis.synthesize(v12_state)
 
+    # V1.3: expose the existing 37-question evidence state.
+    v13_question_state = []
+    for question_id, question in getattr(v12_state, "questions", {}).items():
+        v13_question_state.append({
+            "id": question_id,
+            "answer": getattr(question, "answer", None),
+            "evidence": getattr(question, "evidence", None),
+            "status": getattr(question, "status", "UNVERIFIED"),
+            "confidence": getattr(question, "confidence", None),
+            "source": getattr(question, "source", None),
+        })
+
     environment_data = payload.get("environment", {})
     referee_data = payload.get("referee", {})
 
@@ -232,6 +245,7 @@ def run_prediction(payload: Dict[str, Any]) -> Dict[str, Any]:
     final_output = orchestrator.run_master_orchestration()
 
     return {
+        "questions": get_all_questions(),
         "competition": payload["competition"],
         "home_team": home["team_name"],
         "away_team": away["team_name"],

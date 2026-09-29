@@ -13,6 +13,74 @@ main{max-width:900px;margin:20px auto;padding:10px}
 .meta{color:#667085;margin:6px 0}
 .error{color:#b42318}
 </style>
+
+<style>
+#match-intelligence-search {
+    margin-bottom: 20px;
+}
+
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.search-grid input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#analyzeMatch {
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#analyzeMatch:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.intelligence-summary {
+    margin-top: 18px;
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.question-list {
+    margin-top: 15px;
+}
+
+.question-card {
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.question-card h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+.question-card p {
+    margin: 6px 0;
+    line-height: 1.45;
+}
+
+.error {
+    color: #b00020;
+}
+</style>
+
 </head>
 <body>
 
@@ -22,11 +90,156 @@ main{max-width:900px;margin:20px auto;padding:10px}
 </header>
 
 <main>
+
+<div class="card" id="match-intelligence-search">
+<h2>Match Intelligence</h2>
+
+<div class="search-grid">
+<input id="teamA" type="text" placeholder="Team A">
+<input id="teamB" type="text" placeholder="Team B">
+<input id="competition" type="text" placeholder="Competition">
+<input id="matchDate" type="date">
+</div>
+
+<button id="analyzeMatch" onclick="analyzeMatch()">Analyze Match</button>
+
+<div id="intelligenceStatus"></div>
+<div id="intelligenceResult"></div>
+</div>
+
 <div id="status" class="card">Loading today's predictions...</div>
 <div id="matches"></div>
 </main>
 
 <script>
+
+async function analyzeMatch() {
+    const teamA = document.getElementById("teamA").value.trim();
+    const teamB = document.getElementById("teamB").value.trim();
+    const competition = document.getElementById("competition").value.trim();
+    const date = document.getElementById("matchDate").value || null;
+
+    const status = document.getElementById("intelligenceStatus");
+    const resultBox = document.getElementById("intelligenceResult");
+    const button = document.getElementById("analyzeMatch");
+
+    if (!teamA || !teamB || !competition) {
+        status.innerHTML = "<p class='error'>Team A, Team B and Competition are required.</p>";
+        return;
+    }
+
+    button.disabled = true;
+    status.innerHTML = "<p>Analyzing fresh V1.3 intelligence...</p>";
+    resultBox.innerHTML = "";
+
+    try {
+        const response = await fetch("/v13/match-intelligence", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                team_a: teamA,
+                team_b: teamB,
+                competition: competition,
+                date: date
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail?.message ||
+                data.detail?.error ||
+                data.detail ||
+                "API returned HTTP " + response.status
+            );
+        }
+
+        status.innerHTML =
+            "<p><strong>Fresh V1.3 intelligence session created.</strong></p>";
+
+        const intelligence = data.intelligence || {};
+        const questions = intelligence.questions || [];
+
+        let html =
+            "<div class='intelligence-summary'>" +
+            "<h3>" + teamA + " vs " + teamB + "</h3>" +
+            "<p><strong>Competition:</strong> " +
+            (data.competition?.competition_name || competition) +
+            "</p>" +
+            "<p><strong>Session:</strong> FRESH</p>" +
+            "<p><strong>Readiness:</strong> " +
+            (intelligence.readiness || "UNKNOWN") +
+            "</p>" +
+            "</div>";
+
+        if (questions.length === 0) {
+            html += "<p>No questions were returned by the V1.3 engine.</p>";
+        } else {
+            html += "<div class='question-list'>";
+
+            questions.forEach((q) => {
+                const answer =
+                    q.answer === null || q.answer === undefined
+                        ? "No verified answer yet"
+                        : q.answer;
+
+                const statusText = q.answer_status || "UNKNOWN";
+                const method = q.resolution_type || "UNKNOWN";
+
+                html +=
+                    "<div class='question-card'>" +
+                    "<h4>" +
+                    (q.question_id || "") +
+                    " — " +
+                    (q.question_text || "") +
+                    "</h4>" +
+                    "<p><strong>Answer:</strong> " +
+                    answer +
+                    "</p>" +
+                    "<p><strong>Status:</strong> " +
+                    statusText +
+                    "</p>" +
+                    "<p><strong>Method:</strong> " +
+                    method +
+                    "</p>" +
+                    "<p><strong>Confidence:</strong> " +
+                    Math.round((q.confidence || 0) * 100) +
+                    "%</p>" +
+                    "<p><strong>Evidence:</strong> " +
+                    ((q.evidence_ids || []).length
+                        ? q.evidence_ids.join(", ")
+                        : "None") +
+                    "</p>" +
+                    "<p><strong>Uncertainty:</strong> " +
+                    (q.uncertainty || "None stated") +
+                    "</p>" +
+                    "<p><strong>Missing information:</strong> " +
+                    (q.missing_information || "None stated") +
+                    "</p>" +
+                    "</div>";
+            });
+
+            html += "</div>";
+        }
+
+        resultBox.innerHTML = html;
+
+    } catch (error) {
+        status.innerHTML =
+            "<p class='error'>Match Intelligence Error</p>";
+
+        resultBox.innerHTML =
+            "<p class='error'>" +
+            error.message +
+            "</p>";
+    } finally {
+        button.disabled = false;
+    }
+}
+
 async function loadPredictions() {
     const status = document.getElementById("status");
     const matches = document.getElementById("matches");
@@ -55,9 +268,40 @@ async function loadPredictions() {
         data.predictions.forEach(item => {
             const prediction = item.prediction || item;
             const finalOutput = prediction.final_output || {};
+            const v13 = prediction.v13 || {};
 
             const card = document.createElement("div");
             card.className = "card";
+
+            const v13Rows = [
+                ["Competition ID", v13.competition_id],
+                ["Competition", v13.competition_name_canonical],
+                ["Identity", v13.competition_identity_status],
+                ["Identity Method", v13.competition_identity_method],
+                ["Source Status", v13.source_status],
+                ["Sources", Array.isArray(v13.source_ids) ? v13.source_ids.join(", ") : v13.source_ids],
+                ["Evidence", v13.evidence_status],
+                ["Readiness", v13.readiness_status],
+                ["Evidence Count", v13.evidence_count],
+                ["Resolved Questions", v13.resolved_questions],
+                ["Unresolved Questions", v13.unresolved_questions]
+            ].filter(row =>
+                row[1] !== undefined &&
+                row[1] !== null &&
+                row[1] !== ""
+            );
+
+            let v13Html = "";
+
+            if (v13Rows.length) {
+                v13Html =
+                    "<div class='v13-section'>" +
+                    "<h3>V1.3 Intelligence</h3>" +
+                    v13Rows.map(row =>
+                        "<p><strong>" + row[0] + ":</strong> " + row[1] + "</p>"
+                    ).join("") +
+                    "</div>";
+            }
 
             card.innerHTML =
                 "<h2>" +
@@ -86,8 +330,10 @@ async function loadPredictions() {
 
                 "<p>Away xG: " +
                 (finalOutput.away_xg ?? "-") +
-                "</p>";
-            
+                "</p>" +
+
+                v13Html;
+
             matches.appendChild(card);
         });
 
